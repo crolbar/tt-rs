@@ -9,10 +9,19 @@ use crossterm::event::poll;
 use std::time::Duration;
 
 fn main() -> Result<()> {
-    let mut app = App::default();
     let mut tui = tui::Tui::enter()?;
+    let mut app = App { 
+        rect: ui::create_rect(tui.term.get_frame().size(), false),
+        ..App::default()
+    };
 
-    app.target_text = "place life only this late or before against".to_string();
+    app.target_text = "place life only this late or before against goverment after mean this go behave".to_string();
+
+    if app.scroller {
+        let filler_str = std::iter::repeat(' ').take(app.rect.width as usize / 2).collect::<String>();
+        app.curr_text.insert_str(0, &filler_str);
+        app.target_text.insert_str(0, &filler_str);
+    }
 
     while !app.exit {
         tui.draw(&mut app)?;
