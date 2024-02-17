@@ -1,8 +1,12 @@
+use ratatui::layout::Rect;
+
 #[derive(Default)]
 pub struct App {
     pub exit: bool,
     pub target_text: String,
     pub curr_text: String,
+    pub rect: Rect,
+    pub scroller: bool,
 }
 
 impl App {
