@@ -40,12 +40,19 @@ pub fn update(app: &mut App, _tui: &mut Tui) -> Result<()> {
                 }
             } else {
                 match key.code {
-                    KeyCode::Char(char) => app.curr_text.push(char),
+                    KeyCode::Char(' ') => app.jump_to_next_word(),
+                    KeyCode::Char(char) => {
+                        if app.target_text.chars().nth(app.curr_text.len()) != Some(' ') {
+                            app.curr_text.push(char) 
+                        }
+                    },
                     KeyCode::Backspace => {
-                        if !app.scroller  {
-                            app.curr_text.pop(); 
-                        } else if app.curr_text.len() as u16 > app.rect.width / 2 {
-                            app.curr_text.pop(); 
+                        if !app.scroller || app.curr_text.len() as u16 > app.rect.width / 2 {
+                            if app.curr_text.chars().last() == Some(' ') {
+                                app.del_whitespaces();
+                            } else {
+                                app.curr_text.pop();
+                            }
                         }
                     },
 
