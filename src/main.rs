@@ -15,13 +15,7 @@ fn main() -> Result<()> {
         ..App::default()
     };
 
-    app.target_text = "place life only this late or before against goverment after mean this go behave".to_string();
-
-    if app.scroller {
-        let filler_str = std::iter::repeat(' ').take(app.rect.width as usize / 2).collect::<String>();
-        app.curr_text.insert_str(0, &filler_str);
-        app.target_text.insert_str(0, &filler_str);
-    }
+    app.target_text = "place life only this late or before against goverment after mean this go behave place life only this late or before against goverment after mean this go behave place life only this late or before against goverment after mean this go behave place life only this late or before against goverment after mean this go behave".to_string();
 
     while !app.exit {
         tui.draw(&mut app)?;

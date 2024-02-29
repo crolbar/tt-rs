@@ -4,20 +4,7 @@ use ratatui::style::Stylize;
 use ratatui::widgets::*;
 
 pub fn render(app: &mut App, frame: &mut Frame) {
-    render_scroller(app, frame);
-}
-
-fn render_scroller(app: &mut App, frame: &mut Frame) {
     app.rect = create_rect(frame.size(), app.scroller);
-
-    let filler_len = app.curr_text.chars().take_while(|c| *c == ' ').count();
-    if filler_len != app.rect.width as usize / 2 {
-        app.curr_text.drain(0..filler_len);
-        app.target_text.drain(0..filler_len);
-        let filler = std::iter::repeat(' ').take(app.rect.width as usize / 2).collect::<String>();
-        app.curr_text.insert_str(0, &filler);
-        app.target_text.insert_str(0, &filler);
-    }
 
     let chars: Vec<Span> = {
         app.target_text.chars().enumerate().map(|(i, target_c)| {
@@ -36,6 +23,34 @@ fn render_scroller(app: &mut App, frame: &mut Frame) {
             }
         }).collect()
     };
+
+    match app.scroller {
+        true => render_scroller(app, frame, chars),
+        false => render_wrapped(app, frame, chars)
+    }
+}
+
+fn render_wrapped(app: &mut App, frame: &mut Frame, chars: Vec<Span>) {
+    app.update_cursor();
+    frame.set_cursor(app.cursor_pos.0, app.cursor_pos.1);
+
+    frame.render_widget(
+        Paragraph::new(Line::from(chars))
+            .wrap(Wrap::default()),
+        app.rect
+    );
+}
+
+fn render_scroller(app: &mut App, frame: &mut Frame, chars: Vec<Span>) {
+    // centering of the txt
+    let filler_len = app.curr_text.chars().take_while(|c| *c == ' ').count();
+    if filler_len != app.rect.width as usize / 2 {
+        app.curr_text.drain(0..filler_len);
+        app.target_text.drain(0..filler_len);
+        let filler = std::iter::repeat(' ').take(app.rect.width as usize / 2).collect::<String>();
+        app.curr_text.insert_str(0, &filler);
+        app.target_text.insert_str(0, &filler);
+    }
 
     frame.set_cursor(app.rect.x + app.rect.width / 2, app.rect.y);
 
