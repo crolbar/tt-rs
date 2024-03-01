@@ -1,6 +1,7 @@
 use ratatui::layout::Rect;
+use std::{io::Result, time::{Duration, Instant}, usize};
+use crate::tui::Tui;
 
-#[derive(Default)]
 pub struct App {
     pub exit: bool,
     pub target_text: String,
@@ -8,9 +9,19 @@ pub struct App {
     pub rect: Rect,
     pub scroller: bool,
     pub cursor_pos: (u16, u16),
+    pub start_time: Option<Instant>,
+    pub end_time: Option<Instant>,
+    pub timer_time: Duration,
+    pub correct_chars: u32,
+    pub incorrect_chars: u32,
 }
 
+
 impl App {
+    pub fn new() -> Result<(Self, Tui)> {
+        Ok((App::default(), Tui::enter()?))
+    }
+
     pub fn del_last_word(&mut self) {
         if let Some(_) = self.curr_text.chars().rev().skip(1).find(|c| *c == ' ') {
 
@@ -98,4 +109,85 @@ impl App {
             self.cursor_pos.0 = ((self.curr_text.len() - last_line_width) as u16) + self.rect.x;
         }
     }
+
+    pub fn start_timer(&mut self) {
+        self.start_time = Some(Instant::now());
+    }
+    
+    pub fn is_out_of_time(&self) -> bool {
+        if let Some(st) = self.start_time {
+            st.elapsed() >= self.timer_time
+        } else { false }
+    }
+    
+    pub fn is_finished_typing(&self) -> bool {
+        self.curr_text.len() == self.target_text.len()
+    }
+
+    pub fn check_is_char_corr(&mut self) {
+        if self.curr_text.chars().last().unwrap() == self.target_text.chars().nth(self.curr_text.len() - 1).unwrap() {
+            self.correct_chars += 1;
+        } else {
+            self.incorrect_chars += 1;
+        }
+    }
+
+    pub fn restart(&mut self) {
+        self.correct_chars = 0;
+        self.incorrect_chars = 0;
+        self.curr_text.clear();
+        self.start_time = None;
+        self.end_time = None;
+
+        if self.scroller {
+            self.curr_text.insert_str(
+                0, &std::iter::repeat(' ').take(self.rect.width as usize / 2).collect::<String>()
+            )
+        } else if let Some(o) = Some(self.target_text.chars().take_while(|i| *i == ' ').count()) {
+            self.target_text.drain(0..o);
+        }
+
+    }
+
+    pub fn get_wpm(&mut self) -> f64 {
+        if self.end_time == None {
+            self.end_time = Some(Instant::now())
+        }
+
+        self.curr_text.split_whitespace().count() as f64 / // FIX THIS (get correct words instead of just words)
+            ((self.end_time.unwrap() - self.start_time.unwrap()).as_secs_f64() / 60.0)
+    }
+}
+
+impl Default for App {
+    fn default() -> Self {
+        let args: Vec<String> = std::env::args().collect();
+
+        Self {
+            exit: false,
+            scroller: false,
+            start_time: None,
+            end_time: None,
+            cursor_pos: (0,0),
+            curr_text: String::new(),
+            target_text: String::new(),
+            correct_chars: 0,
+            incorrect_chars: 0,
+            rect: Rect::default(),
+            timer_time: 
+                if let Some(time) = args.iter().position(|i| i == &"-t".to_string()) {
+                    Duration::from_secs(
+                        args.get(time + 1)
+                        .unwrap_or_else(|| {
+                            println!("add time after -t in secs (e.g: -t 30)");
+                            std::process::exit(0)
+                        }).parse().unwrap_or_else(|_| {
+                            println!("incorrect duration: add time after -t in secs (e.g: -t 30)");
+                            std::process::exit(0)
+                        })
+                    )
+                } else { Duration::from_secs(1200) }
+        }
+    }
+    
 }

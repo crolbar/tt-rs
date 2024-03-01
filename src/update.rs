@@ -4,6 +4,10 @@ use std::io::Result;
 
 pub fn update(app: &mut App, _tui: &mut Tui) -> Result<()> {
     if let Event::Key(key) = event::read()? {
+        if app.start_time == None {
+            app.start_timer();
+        }
+
         if key.kind == KeyEventKind::Press {
             if 
                     key.modifiers == KeyModifiers::ALT &&
@@ -16,15 +20,7 @@ pub fn update(app: &mut App, _tui: &mut Tui) -> Result<()> {
             if key.modifiers == KeyModifiers::ALT {
                 match key.code {
                     KeyCode::Char('s') => app.scroller = !app.scroller,
-                    KeyCode::Char('r') => {
-                        app.curr_text.clear();
-
-                        if app.scroller {
-                            app.curr_text.insert_str(
-                                0, &std::iter::repeat(' ').take(app.rect.width as usize / 2).collect::<String>()
-                            )
-                        }
-                    },
+                    KeyCode::Char('r') => app.restart(),
                     _ => ()
                 }
             }
@@ -33,21 +29,34 @@ pub fn update(app: &mut App, _tui: &mut Tui) -> Result<()> {
                 key.code == KeyCode::Char('h') && key.modifiers == KeyModifiers::CONTROL ||
                 key.code == KeyCode::Backspace && key.modifiers == KeyModifiers::CONTROL
             {
-                if !app.scroller  {
-                    app.del_last_word()
-                } else if app.curr_text.len() as u16 > app.rect.width / 2 {
+                if 
+                    (!app.scroller ||
+                    app.curr_text.len() as u16 > app.rect.width / 2) &&
+                    !app.is_finished_typing() &&
+                    !app.is_out_of_time()
+                {
                     app.del_last_word()
                 }
             } else {
                 match key.code {
                     KeyCode::Char(' ') => app.jump_to_next_word(),
                     KeyCode::Char(char) => {
-                        if app.target_text.chars().nth(app.curr_text.len()) != Some(' ') {
-                            app.curr_text.push(char) 
+                        if 
+                            app.target_text.chars().nth(app.curr_text.len()) != Some(' ') &&
+                            !app.is_finished_typing() &&
+                            !app.is_out_of_time()
+                        {
+                            app.curr_text.push(char);
+                            app.check_is_char_corr();
                         }
                     },
                     KeyCode::Backspace => {
-                        if !app.scroller || app.curr_text.len() as u16 > app.rect.width / 2 {
+                        if
+                            (!app.scroller ||
+                            app.curr_text.len() as u16 > app.rect.width / 2) &&
+                            !app.is_finished_typing() &&
+                            !app.is_out_of_time()
+                        {
                             if app.curr_text.chars().last() == Some(' ') {
                                 app.del_whitespaces();
                             } else {
