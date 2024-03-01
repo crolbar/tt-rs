@@ -24,10 +24,41 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         }).collect()
     };
 
-    match app.scroller {
-        true => render_scroller(app, frame, chars),
-        false => render_wrapped(app, frame, chars)
+    match app.is_finished_typing() || app.is_out_of_time() {
+        true => render_stats(app, frame),
+        false => match app.scroller {
+            true => render_scroller(app, frame, chars),
+            false => render_wrapped(app, frame, chars)
+        }
     }
+
+    if let Some(_) = std::env::args().find(|i| i == "-t") {
+        if let Some(start_time) = app.start_time {
+            let area = Rect { y: app.rect.y - 2, ..app.rect };
+
+            frame.render_widget(
+                Paragraph::new(
+                    format!("{}", 
+                        app.timer_time.as_secs().saturating_sub(start_time.elapsed().as_secs())
+                    )),
+                area
+            )
+        } 
+    }
+}
+
+fn render_stats(app: &mut App, frame: &mut Frame) {
+    frame.render_widget(
+        Paragraph::new(
+            format!(
+                "WPM: {:.0}\nAccuracy: {:.2}\ncorrect: {}\nincorrect: {}",
+                    app.get_wpm(),
+                    (app.correct_chars as f64 / (app.correct_chars + app.incorrect_chars) as f64) * 100.0,
+                    app.correct_chars,
+                    app.incorrect_chars
+            )),
+        Rect { ..app.rect }
+    )
 }
 
 fn render_wrapped(app: &mut App, frame: &mut Frame, chars: Vec<Span>) {
