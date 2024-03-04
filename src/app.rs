@@ -1,5 +1,8 @@
+use std::{env, fs::File, time::{Duration, Instant}};
+use anyhow::{Context, Result};
+use rand::seq::SliceRandom;
 use ratatui::layout::Rect;
-use std::{io::Result, time::{Duration, Instant}, usize};
+use ron::de::from_reader;
 use crate::tui::Tui;
 
 pub struct App {
@@ -16,10 +19,60 @@ pub struct App {
     pub incorrect_chars: u32,
 }
 
-
 impl App {
     pub fn new() -> Result<(Self, Tui)> {
-        Ok((App::default(), Tui::enter()?))
+        let args: Vec<String> = std::env::args().collect();
+
+        let timer_time = {
+                if let Some(time) = args.iter().position(|i| i == &"-t".to_string()) {
+                    Duration::from_secs(
+                        args.get(time + 1)
+                            .with_context(|| "add time after -t in secs (e.g: -t 30)")?
+                        .parse()
+                            .with_context(|| "incorrect duration: add time after -t in secs (e.g: -t 30)")?
+                    )
+                } else { Duration::from_secs(1200) }
+        };
+
+        Ok((
+            Self {
+                exit: false,
+                scroller: false,
+                start_time: None,
+                end_time: None,
+                cursor_pos: (0,0),
+                curr_text: String::new(),
+                target_text: App::get_random_words(args)?,
+                correct_chars: 0,
+                incorrect_chars: 0,
+                rect: Rect::default(),
+                timer_time
+            },
+            Tui::enter()?
+        ))
+    }
+
+    pub fn get_random_words(args: Vec<String>) -> Result<String> {
+        let file_path = format!("{}/.config/tt-rs/words.ron", env::var("HOME")?);
+
+        let mut c: Vec<String> = from_reader(
+            File::open(file_path).with_context(|| "words.ron(~/.config/tt-rs/words.ron) file is incorrect or missing")?
+        )?;
+
+        let mut rng = rand::thread_rng();
+
+        c.shuffle(&mut rng);
+
+        let txt_len = {
+            if let Some(length) = args.iter().position(|i| i == &"-w".to_string()) {
+                args.get(length + 1)
+                        .with_context(|| "add number after -w (e.g: -w 30)")?
+                    .parse()
+                        .with_context(|| "incorrect number: add number after -w (e.g: -w 30)")?
+            } else { 50 }
+        };
+
+        Ok(c[..txt_len].join(" "))
     }
 
     pub fn del_last_word(&mut self) {
@@ -33,12 +86,15 @@ impl App {
                         .rfind(|(_, c)| *c == ' ')
                 {
                     if *start_of_word == self.curr_text.len() - 1 {
-                        self.target_text.char_indices()
-                            .take(self.curr_text.len())
-                            .collect::<Vec<_>>().iter()
-                            .rev().skip(1)
-                            .find(|(_, c)| *c == ' ')
-                            .unwrap_or(&(0,'a')).0 + 1 // FIX THIS
+                        if let Some(previous_whitespace) = 
+                            self.target_text.char_indices()
+                                .take(self.curr_text.len())
+                                .collect::<Vec<_>>().iter()
+                                .rev().skip(1)
+                                .find(|(_, c)| *c == ' ')
+                        {
+                            previous_whitespace.0 + 1
+                        } else { 0 }
                     } else { start_of_word + 1 }
                 }
 
@@ -88,13 +144,13 @@ impl App {
 
                             let word_lenght = self.target_text
                                 .split_at(whitespace_before_word).1
-                                .split_once(' ').unwrap().0
+                                .split_once(' ').unwrap_or((&self.target_text, "")).0
                             .len();
 
                             if curr_line_width - whitespace_before_word < word_lenght {
                                 curr_line_width = whitespace_before_word
-                            } else { curr_line_width += 1 } // again because we want curr_line_width to index the whitespace
-                        }
+                            } else { curr_line_width += 1 } // if the curr_line_width indexes the end char of an word we +1
+                        }                                   // so curr_line_width indexes the whitespace
 
                         // if at the next line
                         if self.curr_text.len() >= curr_line_width {
@@ -132,12 +188,16 @@ impl App {
         }
     }
 
-    pub fn restart(&mut self) {
+    pub fn restart(&mut self, reset_txt: bool) {
         self.correct_chars = 0;
         self.incorrect_chars = 0;
         self.curr_text.clear();
         self.start_time = None;
         self.end_time = None;
+
+        if reset_txt {
+            self.target_text = App::get_random_words(std::env::args().collect()).unwrap();
+        }
 
         if self.scroller {
             self.curr_text.insert_str(
@@ -154,40 +214,9 @@ impl App {
             self.end_time = Some(Instant::now())
         }
 
-        self.curr_text.split_whitespace().count() as f64 / // FIX THIS (get correct words instead of just words)
+        let target_words: Vec<&str> = self.target_text.split_whitespace().collect();
+
+        self.curr_text.split_whitespace().enumerate().filter(|(i, w)| *w == target_words[*i]).count() as f64 /
             ((self.end_time.unwrap() - self.start_time.unwrap()).as_secs_f64() / 60.0)
     }
-}
-
-impl Default for App {
-    fn default() -> Self {
-        let args: Vec<String> = std::env::args().collect();
-
-        Self {
-            exit: false,
-            scroller: false,
-            start_time: None,
-            end_time: None,
-            cursor_pos: (0,0),
-            curr_text: String::new(),
-            target_text: String::new(),
-            correct_chars: 0,
-            incorrect_chars: 0,
-            rect: Rect::default(),
-            timer_time: 
-                if let Some(time) = args.iter().position(|i| i == &"-t".to_string()) {
-                    Duration::from_secs(
-                        args.get(time + 1)
-                        .unwrap_or_else(|| {
-                            println!("add time after -t in secs (e.g: -t 30)");
-                            std::process::exit(0)
-                        }).parse().unwrap_or_else(|_| {
-                            println!("incorrect duration: add time after -t in secs (e.g: -t 30)");
-                            std::process::exit(0)
-                        })
-                    )
-                } else { Duration::from_secs(1200) }
-        }
-    }
-    
 }

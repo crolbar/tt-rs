@@ -4,10 +4,6 @@ use std::io::Result;
 
 pub fn update(app: &mut App, _tui: &mut Tui) -> Result<()> {
     if let Event::Key(key) = event::read()? {
-        if app.start_time == None {
-            app.start_timer();
-        }
-
         if key.kind == KeyEventKind::Press {
             if 
                     key.modifiers == KeyModifiers::ALT &&
@@ -20,7 +16,8 @@ pub fn update(app: &mut App, _tui: &mut Tui) -> Result<()> {
             if key.modifiers == KeyModifiers::ALT {
                 match key.code {
                     KeyCode::Char('s') => app.scroller = !app.scroller,
-                    KeyCode::Char('r') => app.restart(),
+                    KeyCode::Char('r') => app.restart(false),
+                    KeyCode::Char('n') => app.restart(true),
                     _ => ()
                 }
             }
@@ -39,8 +36,13 @@ pub fn update(app: &mut App, _tui: &mut Tui) -> Result<()> {
                 }
             } else {
                 match key.code {
+                    KeyCode::Tab => app.restart(true),
                     KeyCode::Char(' ') => app.jump_to_next_word(),
                     KeyCode::Char(char) => {
+                        if app.start_time == None {
+                            app.start_timer();
+                        }
+
                         if 
                             app.target_text.chars().nth(app.curr_text.len()) != Some(' ') &&
                             !app.is_finished_typing() &&

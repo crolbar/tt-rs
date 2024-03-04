@@ -51,11 +51,12 @@ fn render_stats(app: &mut App, frame: &mut Frame) {
     frame.render_widget(
         Paragraph::new(
             format!(
-                "WPM: {:.0}\nAccuracy: {:.2}\ncorrect: {}\nincorrect: {}",
+                "WPM: {:.0}\nAccuracy: {:.2}\ncorrect: {}\nincorrect: {}\nTime: {}",
                     app.get_wpm(),
                     (app.correct_chars as f64 / (app.correct_chars + app.incorrect_chars) as f64) * 100.0,
                     app.correct_chars,
-                    app.incorrect_chars
+                    app.incorrect_chars,
+                    (app.end_time.unwrap() - app.start_time.unwrap()).as_secs()
             )),
         Rect { ..app.rect }
     )
@@ -67,7 +68,7 @@ fn render_wrapped(app: &mut App, frame: &mut Frame, chars: Vec<Span>) {
 
     frame.render_widget(
         Paragraph::new(Line::from(chars))
-            .wrap(Wrap::default()),
+            .wrap(Wrap::default()).on_yellow(),
         app.rect
     );
 }
