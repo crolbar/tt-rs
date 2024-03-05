@@ -68,14 +68,14 @@ fn render_wrapped(app: &mut App, frame: &mut Frame, chars: Vec<Span>) {
 
     frame.render_widget(
         Paragraph::new(Line::from(chars))
-            .wrap(Wrap::default()).on_yellow(),
+            .wrap(Wrap::default()),
         app.rect
     );
 }
 
 fn render_scroller(app: &mut App, frame: &mut Frame, chars: Vec<Span>) {
     // centering of the txt
-    let filler_len = app.curr_text.chars().take_while(|c| *c == ' ').count();
+    let filler_len = app.target_text.chars().take_while(|c| *c == ' ').count();
     if filler_len != app.rect.width as usize / 2 {
         app.curr_text.drain(0..filler_len);
         app.target_text.drain(0..filler_len);

@@ -1,8 +1,8 @@
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use crate::{app::App, tui::Tui};
-use std::io::Result;
+use anyhow::Result;
 
-pub fn update(app: &mut App, _tui: &mut Tui) -> Result<()> {
+pub fn update(app: &mut App, tui: &mut Tui) -> Result<()> {
     if let Event::Key(key) = event::read()? {
         if key.kind == KeyEventKind::Press {
             if 
@@ -15,9 +15,18 @@ pub fn update(app: &mut App, _tui: &mut Tui) -> Result<()> {
             
             if key.modifiers == KeyModifiers::ALT {
                 match key.code {
-                    KeyCode::Char('s') => app.scroller = !app.scroller,
-                    KeyCode::Char('r') => app.restart(false),
-                    KeyCode::Char('n') => app.restart(true),
+                    KeyCode::Char('s') => {
+                        app.scroller = !app.scroller;
+
+                        if !app.scroller {
+                            app.target_text.drain(0..app.rect.width as usize / 2);
+                            app.curr_text.drain(0..app.rect.width as usize / 2);
+                        } else {
+                            tui.draw(app)?
+                        }
+                    },
+                    KeyCode::Char('r') => app.restart(false)?,
+                    KeyCode::Char('n') => app.restart(true)?,
                     _ => ()
                 }
             }
@@ -36,7 +45,7 @@ pub fn update(app: &mut App, _tui: &mut Tui) -> Result<()> {
                 }
             } else {
                 match key.code {
-                    KeyCode::Tab => app.restart(true),
+                    KeyCode::Tab => app.restart(true)?,
                     KeyCode::Char(' ') => app.jump_to_next_word(),
                     KeyCode::Char(char) => {
                         if app.start_time == None {
