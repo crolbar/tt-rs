@@ -482,7 +482,6 @@ dependencies = [
  "rand",
  "ratatui",
  "ron",
- "serde",
 ]
 
 [[package]]

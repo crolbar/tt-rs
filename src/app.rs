@@ -1,6 +1,6 @@
-use std::{env, fs::File, time::{Duration, Instant}};
+use std::{env::{self, args}, fs::File, time::{Duration, Instant}};
 use anyhow::{Context, Result};
-use rand::seq::SliceRandom;
+use rand::{seq::SliceRandom, thread_rng, Rng};
 use ratatui::layout::Rect;
 use ron::de::from_reader;
 use crate::tui::Tui;
@@ -41,27 +41,40 @@ impl App {
                 start_time: None,
                 end_time: None,
                 cursor_pos: (0,0),
-                curr_text: String::new(),
-                target_text: App::get_random_words(args)?,
                 correct_chars: 0,
                 incorrect_chars: 0,
                 rect: Rect::default(),
+                curr_text: String::new(),
+                target_text: match args.contains(&"-q".to_string()) {
+                    true => App::get_random_quotes()?,
+                    false => App::get_random_words(args)?,
+                },
                 timer_time
             },
             Tui::enter()?
         ))
     }
 
+    pub fn get_random_quotes() -> Result<String> {
+        let file_path = format!("{}/.config/tt-rs/quotes.ron", env::var("HOME")?);
+        
+        let conts: Vec<String> = from_reader(
+            File::open(file_path).with_context(|| "quotes.ron(~/.config/tt-rs/quotes.ron) file is incorrect or missing")?
+        )?;
+
+        Ok(conts[thread_rng().gen_range(0..conts.len())].clone())
+    }
+
     pub fn get_random_words(args: Vec<String>) -> Result<String> {
         let file_path = format!("{}/.config/tt-rs/words.ron", env::var("HOME")?);
 
-        let mut c: Vec<String> = from_reader(
+        let mut conts: Vec<String> = from_reader(
             File::open(file_path).with_context(|| "words.ron(~/.config/tt-rs/words.ron) file is incorrect or missing")?
         )?;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = thread_rng();
 
-        c.shuffle(&mut rng);
+        conts.shuffle(&mut rng);
 
         let txt_len = {
             if let Some(length) = args.iter().position(|i| i == &"-w".to_string()) {
@@ -72,7 +85,7 @@ impl App {
             } else { 50 }
         };
 
-        Ok(c[..txt_len].join(" "))
+        Ok(conts[..txt_len].join(" "))
     }
 
     pub fn del_last_word(&mut self) {
@@ -188,15 +201,20 @@ impl App {
         }
     }
 
-    pub fn restart(&mut self, reset_txt: bool) {
+    pub fn restart(&mut self, reset_txt: bool) -> Result<()> {
         self.correct_chars = 0;
         self.incorrect_chars = 0;
         self.curr_text.clear();
         self.start_time = None;
         self.end_time = None;
 
+        let args: Vec<String> = args().collect();
+
         if reset_txt {
-            self.target_text = App::get_random_words(std::env::args().collect()).unwrap();
+            self.target_text = match args.contains(&"-q".to_string()) {
+                true => App::get_random_quotes()?,
+                false => App::get_random_words(args)?
+            }
         }
 
         if self.scroller {
@@ -206,7 +224,7 @@ impl App {
         } else if let Some(o) = Some(self.target_text.chars().take_while(|i| *i == ' ').count()) {
             self.target_text.drain(0..o);
         }
-
+        Ok(())
     }
 
     pub fn get_wpm(&mut self) -> f64 {
