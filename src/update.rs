@@ -6,8 +6,8 @@ pub fn update(app: &mut App, tui: &mut Tui) -> Result<()> {
     if let Event::Key(key) = event::read()? {
         if key.kind == KeyEventKind::Press {
             if 
-                    key.modifiers == KeyModifiers::ALT &&
-                    key.code == KeyCode::Char('q') ||
+                    (key.modifiers == KeyModifiers::ALT && key.code == KeyCode::Char('q')) ||
+                    (key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('c')) ||
                     key.code == KeyCode::Esc
             {
                 app.exit = true
