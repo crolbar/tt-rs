@@ -23,6 +23,17 @@ impl App {
     pub fn new() -> Result<(Self, Tui)> {
         let args: Vec<String> = std::env::args().collect();
 
+        if args.contains(&"-h".to_string()) || args.contains(&"--help".to_string()) {
+            println!(
+                "\
+                -t <TIME>     Specify time for the timer in secs \
+                \n-w <NUM>      Specify the number of words in the test \
+                \n-q            Test contains quotes instead of words \
+                "
+            );
+            std::process::exit(0);
+        }
+
         let timer_time = {
                 if let Some(time) = args.iter().position(|i| i == &"-t".to_string()) {
                     Duration::from_secs(
@@ -82,7 +93,7 @@ impl App {
                         .with_context(|| "add number after -w (e.g: -w 30)")?
                     .parse()
                         .with_context(|| "incorrect number: add number after -w (e.g: -w 30)")?
-            } else { 50 }
+            } else { 25 }
         };
 
         Ok(conts[..txt_len].join(" "))
@@ -139,8 +150,8 @@ impl App {
         }
     }
 
-    pub fn update_cursor(&mut self) {
-        self.cursor_pos = (self.rect.x, self.rect.y);
+    pub fn update_cursor(&mut self, frame: &mut ratatui::Frame) {
+        let mut num_rows = self.rect.y;
 
         if self.curr_text.len() != 0 {
                 let mut curr_line_width = self.rect.width as usize;
@@ -167,7 +178,7 @@ impl App {
 
                         // if at the next line
                         if self.curr_text.len() >= curr_line_width {
-                            self.cursor_pos.1 += 1;
+                            num_rows += 1;
 
                             last_line_width = curr_line_width;
                             curr_line_width += self.rect.width as usize;
@@ -175,7 +186,7 @@ impl App {
                     } else { break }
                 }
 
-            self.cursor_pos.0 = ((self.curr_text.len() - last_line_width) as u16) + self.rect.x;
+            frame.set_cursor(((self.curr_text.len() - last_line_width) as u16) + self.rect.x, num_rows)
         }
     }
 
@@ -235,6 +246,6 @@ impl App {
         let target_words: Vec<&str> = self.target_text.split_whitespace().collect();
 
         self.curr_text.split_whitespace().enumerate().filter(|(i, w)| *w == target_words[*i]).count() as f64 /
-            ((self.end_time.unwrap() - self.start_time.unwrap()).as_secs_f64() / 60.0)
+            ((self.end_time.unwrap() - self.start_time.unwrap_or(Instant::now())).as_secs_f64() / 60.0)
     }
 }
