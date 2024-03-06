@@ -1,3 +1,4 @@
+use std::time::Instant;
 use crate::app::App;
 use ratatui::prelude::*;
 use ratatui::style::Stylize;
@@ -10,13 +11,9 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         app.target_text.chars().enumerate().map(|(i, target_c)| {
             if let Some(c) = app.curr_text.chars().nth(i) {
                     if c == target_c {
-                        target_c.to_string().green()
+                        target_c.to_string().white()
                     } else {
-                        if target_c == ' ' {
-                            target_c.to_string().on_red()
-                        } else {
-                            target_c.to_string().red()
-                        }
+                        target_c.to_string().light_red()
                     }
             } else {
                 target_c.to_string().dark_gray()
@@ -32,7 +29,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         }
     }
 
-    if let Some(_) = std::env::args().find(|i| i == "-t") {
+    if std::env::args().find(|i| i == "-t").is_some() && !app.is_finished_typing() {
         if let Some(start_time) = app.start_time {
             let area = Rect { y: app.rect.y - 2, ..app.rect };
 
@@ -51,20 +48,19 @@ fn render_stats(app: &mut App, frame: &mut Frame) {
     frame.render_widget(
         Paragraph::new(
             format!(
-                "WPM: {:.0}\nAccuracy: {:.2}\ncorrect: {}\nincorrect: {}\nTime: {}",
+                "WPM: {:.0}\n\nAccuracy: {:.2}\ncorrect: {}\nincorrect: {}\n\nTime: {}s\n\n\n\n\n\n\n TAB / ALT + n for next test, ALT + r to retry test",
                     app.get_wpm(),
                     (app.correct_chars as f64 / (app.correct_chars + app.incorrect_chars) as f64) * 100.0,
                     app.correct_chars,
                     app.incorrect_chars,
-                    (app.end_time.unwrap() - app.start_time.unwrap()).as_secs()
-            )),
-        Rect { ..app.rect }
+                    (app.end_time.unwrap() - app.start_time.unwrap_or(Instant::now())).as_secs()
+            )).alignment(Alignment::Center),
+        app.rect
     )
 }
 
 fn render_wrapped(app: &mut App, frame: &mut Frame, chars: Vec<Span>) {
-    app.update_cursor();
-    frame.set_cursor(app.cursor_pos.0, app.cursor_pos.1);
+    app.update_cursor(frame);
 
     frame.render_widget(
         Paragraph::new(Line::from(chars))
