@@ -220,16 +220,17 @@ impl App {
         let args: Vec<String> = args().collect();
 
         if reset_txt {
-            self.target_text = match args.contains(&"-q".to_string()) {
-                true => App::get_random_quotes()?,
-                false => App::get_random_words(args)?
-            }
+            self.target_text = 
+                match args.contains(&"-q".to_string()) {
+                    true => App::get_random_quotes()?,
+                    false => App::get_random_words(args)?
+                }
         }
 
         if self.scroller {
-            self.curr_text.insert_str(
-                0, &std::iter::repeat(' ').take(self.rect.width as usize / 2).collect::<String>()
-            )
+            let filler = std::iter::repeat(' ').take(self.rect.width as usize / 2).collect::<String>();
+            self.curr_text.insert_str(0, &filler);
+            self.target_text.insert_str(0, &filler);
         } else if let Some(o) = Some(self.target_text.chars().take_while(|i| *i == ' ').count()) {
             self.target_text.drain(0..o);
         }
