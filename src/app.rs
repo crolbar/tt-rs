@@ -247,4 +247,13 @@ impl App {
         self.curr_text.split_whitespace().enumerate().filter(|(i, w)| *w == target_words[*i]).count() as f64 /
             ((self.end_time.unwrap() - self.start_time.unwrap_or(Instant::now())).as_secs_f64() / 60.0)
     }
+
+    pub fn exit_if_error(&mut self) -> Result<()> {
+        if std::env::args().find(|i|i == "-d").is_some() {
+            if self.incorrect_chars > 0 {
+                self.restart(true)?;
+            }
+        };
+        Ok(())
+    }
 }
