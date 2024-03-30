@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use crate::app::App;
 use ratatui::prelude::*;
 use ratatui::style::Stylize;
@@ -29,8 +29,12 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         }
     }
 
-    if std::env::args().find(|i| i == "-t").is_some() && !app.is_finished_typing() {
-        if let Some(start_time) = app.start_time {
+    if let Some(start_time) = app.start_time {
+        if ( // if there is an time specified show time remainning else show time for 2 secs
+            std::env::args().find(|i| i == "-t").is_some() ||
+            (app.timer_time == Duration::from_secs(1200) && start_time.elapsed() < Duration::from_secs(2))
+           ) && !app.is_finished_typing() 
+        {
             let area = Rect { y: app.rect.y - 2, ..app.rect };
 
             frame.render_widget(
