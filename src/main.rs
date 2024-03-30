@@ -17,6 +17,8 @@ fn main() -> Result<()> {
         if poll(Duration::from_secs(2))? {
             update(&mut app, &mut tui)?;
         }
+
+        app.exit_if_error()?;
     }
 
     tui.exit()?;
