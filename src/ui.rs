@@ -5,7 +5,19 @@ use ratatui::style::Stylize;
 use ratatui::widgets::*;
 
 pub fn render(app: &mut App, frame: &mut Frame) {
-    app.rect = create_rect(frame.size(), app.scroller);
+    app.rect = create_rect(frame.size(), app.scroller, app.is_finished_typing());
+
+    if app.scroller {
+        // centering of the txt
+        let filler_len = app.target_text.chars().take_while(|c| *c == ' ').count();
+        if filler_len != app.rect.width as usize / 2 {
+            app.curr_text.drain(0..filler_len);
+            app.target_text.drain(0..filler_len);
+            let filler = std::iter::repeat(' ').take(app.rect.width as usize / 2).collect::<String>();
+            app.curr_text.insert_str(0, &filler);
+            app.target_text.insert_str(0, &filler);
+        }
+    }
 
     let chars: Vec<Span> = {
         app.target_text.chars().enumerate().map(|(i, target_c)| {
@@ -74,16 +86,6 @@ fn render_wrapped(app: &mut App, frame: &mut Frame, chars: Vec<Span>) {
 }
 
 fn render_scroller(app: &mut App, frame: &mut Frame, chars: Vec<Span>) {
-    // centering of the txt
-    let filler_len = app.target_text.chars().take_while(|c| *c == ' ').count();
-    if filler_len != app.rect.width as usize / 2 {
-        app.curr_text.drain(0..filler_len);
-        app.target_text.drain(0..filler_len);
-        let filler = std::iter::repeat(' ').take(app.rect.width as usize / 2).collect::<String>();
-        app.curr_text.insert_str(0, &filler);
-        app.target_text.insert_str(0, &filler);
-    }
-
     frame.set_cursor(app.rect.x + app.rect.width / 2, app.rect.y);
 
     frame.render_widget(
@@ -93,7 +95,7 @@ fn render_scroller(app: &mut App, frame: &mut Frame, chars: Vec<Span>) {
     );
 }
 
-pub fn create_rect(frame_rect: Rect, scroll: bool) -> Rect {
+pub fn create_rect(frame_rect: Rect, scroll: bool, is_finished_typing: bool) -> Rect {
     let vert = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -109,7 +111,7 @@ pub fn create_rect(frame_rect: Rect, scroll: bool) -> Rect {
             Constraint::Percentage(25),
         ]).split(vert[1])[1];
 
-    if scroll {
+    if scroll && !is_finished_typing {
         Rect { y: r.y + r.height / 2, ..r}
     } else { r }
 }
