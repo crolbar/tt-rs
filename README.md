@@ -13,6 +13,7 @@ words and quotes used have to be in `~/.config/tt-rs`
 ## Usage
 ### Arguments
 `-q` - test contains quotes instead of words \
+`-d` - test will restart if you make an error \
 `-w 50` - specify the number of words \
 `-t 30` - specify time for the timer in seconds
 

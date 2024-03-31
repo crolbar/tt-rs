@@ -18,7 +18,7 @@ fn main() -> Result<()> {
             update(&mut app, &mut tui)?;
         }
 
-        app.exit_if_error()?;
+        app.restart_if_error()?;
     }
 
     tui.exit()?;
