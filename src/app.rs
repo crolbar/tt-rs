@@ -248,7 +248,7 @@ impl App {
             ((self.end_time.unwrap() - self.start_time.unwrap_or(Instant::now())).as_secs_f64() / 60.0)
     }
 
-    pub fn exit_if_error(&mut self) -> Result<()> {
+    pub fn restart_if_error(&mut self) -> Result<()> {
         if std::env::args().find(|i|i == "-d").is_some() {
             if self.incorrect_chars > 0 {
                 self.restart(true)?;
