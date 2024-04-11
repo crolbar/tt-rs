@@ -64,11 +64,12 @@ fn render_stats(app: &mut App, frame: &mut Frame) {
     frame.render_widget(
         Paragraph::new(
             format!(
-                "WPM: {:.0}\n\nAccuracy: {:.2}\ncorrect: {}\nincorrect: {}\n\nTime: {}s\n\n\n\n\n\n\n TAB / ALT + n for next test, ALT + r to retry test",
+                "WPM: {:.0}\n\nAccuracy: {:.2}\ncorrect: {}\nincorrect: {}\nwords: {}\n\nTime: {}s\n\n\n\n\n\n\n TAB / ALT + n for next test, ALT + r to retry test",
                     app.get_wpm(),
                     (app.correct_chars as f64 / (app.correct_chars + app.incorrect_chars) as f64) * 100.0,
                     app.correct_chars,
                     app.incorrect_chars,
+                    app.target_text.split_whitespace().count(),
                     (app.end_time.unwrap() - app.start_time.unwrap_or(Instant::now())).as_secs()
             )).alignment(Alignment::Center),
         app.rect
