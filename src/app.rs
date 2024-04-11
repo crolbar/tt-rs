@@ -230,7 +230,10 @@ impl App {
         if self.scroller {
             let filler = std::iter::repeat(' ').take(self.rect.width as usize / 2).collect::<String>();
             self.curr_text.insert_str(0, &filler);
-            self.target_text.insert_str(0, &filler);
+
+            if reset_txt {
+                self.target_text.insert_str(0, &filler);
+            }
         } else if let Some(o) = Some(self.target_text.chars().take_while(|i| *i == ' ').count()) {
             self.target_text.drain(0..o);
         }
