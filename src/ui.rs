@@ -86,7 +86,7 @@ fn render_wrapped(app: &mut App, frame: &mut Frame, chars: Vec<Span>) {
     );
 }
 
-fn render_scroller(app: &mut App, frame: &mut Frame, chars: Vec<Span>) {
+fn render_scroller(app: &App, frame: &mut Frame, chars: Vec<Span>) {
     frame.set_cursor(app.rect.x + app.rect.width / 2, app.rect.y);
 
     frame.render_widget(
