@@ -28,6 +28,7 @@ impl App {
                 -t <TIME>     Specify time for the timer in secs \
                 \n-w <NUM>      Specify the number of words in the test \
                 \n-q            Test contains quotes instead of words \
+                \n-d            Each time you make an mistake the test will restart \
                 "
             );
             std::process::exit(0);
