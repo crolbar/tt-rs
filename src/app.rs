@@ -200,7 +200,8 @@ impl App {
     }
     
     pub fn is_finished_typing(&self) -> bool {
-        self.curr_text.len() == self.target_text.len()
+        self.curr_text.len() == self.target_text.len() &&
+        self.curr_text.split_whitespace().last().unwrap() == self.target_text.split_whitespace().last().unwrap()
     }
 
     pub fn check_is_char_corr(&mut self) {

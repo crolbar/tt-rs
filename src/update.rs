@@ -55,7 +55,8 @@ pub fn update(app: &mut App, tui: &mut Tui) -> Result<()> {
                         if 
                             app.target_text.chars().nth(app.curr_text.len()) != Some(' ') &&
                             !app.is_finished_typing() &&
-                            !app.is_out_of_time()
+                            !app.is_out_of_time() &&
+                            app.target_text.len() != app.curr_text.len()
                         {
                             app.curr_text.push(char);
                             app.check_is_char_corr();
