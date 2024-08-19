@@ -38,15 +38,15 @@
       system: let
         pkgs = pkgsFor.${system};
 
-        dapu = pkgs.rustPlatform.buildRustPackage {
+        tt-rs = pkgs.rustPlatform.buildRustPackage {
           pname = "tt-rs";
           version = "0.1";
           src = ./.;
           cargoLock.lockFile = ./Cargo.lock;
         };
       in {
-        inherit dapu;
-        default = dapu;
+        inherit tt-rs;
+        default = tt-rs;
       }
     );
   };
