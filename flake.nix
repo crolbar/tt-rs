@@ -1,27 +1,53 @@
 {
   inputs = {
-    nixpkgs.url      = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     rust-overlay.url = "github:oxalica/rust-overlay";
-    flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        overlays = [ (import rust-overlay) ];
-        pkgs = import nixpkgs {
-          inherit system overlays;
+  outputs = {
+    nixpkgs,
+    rust-overlay,
+    ...
+  }: let
+    systems = ["x86_64-linux" "aarch64-linux"];
+    eachSystem = nixpkgs.lib.genAttrs systems;
+
+    overlays = [(import rust-overlay)];
+
+    pkgsFor = eachSystem (
+      system:
+        import nixpkgs {inherit system overlays;}
+    );
+  in {
+    devShells = eachSystem (
+      system: let
+        pkgs = pkgsFor.${system};
+      in
+        with pkgs; {
+          default = mkShell {
+            nativeBuildInputs = [
+              (rust-bin.stable.latest.default.override {
+                extensions = ["rust-src" "rust-analyzer"];
+              })
+            ];
+          };
+        }
+    );
+
+    packages = eachSystem (
+      system: let
+        pkgs = pkgsFor.${system};
+
+        dapu = pkgs.rustPlatform.buildRustPackage {
+          pname = "tt-rs";
+          version = "0.1";
+          src = ./.;
+          cargoLock.lockFile = ./Cargo.lock;
         };
-      in with pkgs;
-      {
-        defaultPackage = (makeRustPlatform {
-          inherit cargo rustc;
-        }).buildRustPackage {
-            cargoLock.lockFile = ./Cargo.lock;
-            version = "0.1";
-            pname = "tt-rs";
-            src = ./.;
-        };
+      in {
+        inherit dapu;
+        default = dapu;
       }
     );
+  };
 }
