@@ -28,7 +28,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                         target_c.to_string().light_red()
                     }
             } else {
-                target_c.to_string().dark_gray()
+                target_c.to_string().fg(Color::Indexed(244))
             }
         }).collect()
     };
