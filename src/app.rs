@@ -66,7 +66,15 @@ impl App {
     }
 
     pub fn get_random_quotes() -> Result<String> {
-        let file_path = format!("{}/.config/tt-rs/quotes.ron", env::var("HOME")?);
+        let file_path = {
+            let xdg_conf_path = format!("{}/tt-rs/quotes.ron", env::var("XDG_CONFIG_HOME")?);
+
+            if std::fs::metadata(&xdg_conf_path).is_err() {
+                format!("{}/.config/tt-rs/quotes.ron", env::var("HOME")?)
+            } else {
+                xdg_conf_path
+            }
+        };
         
         let conts: Vec<String> = from_reader(
             File::open(file_path).with_context(|| "quotes.ron(~/.config/tt-rs/quotes.ron) file is incorrect or missing")?
@@ -76,7 +84,15 @@ impl App {
     }
 
     pub fn get_random_words(args: Vec<String>) -> Result<String> {
-        let file_path = format!("{}/.config/tt-rs/words.ron", env::var("HOME")?);
+        let file_path = {
+            let xdg_conf_path = format!("{}/tt-rs/words.ron", env::var("XDG_CONFIG_HOME")?);
+
+            if std::fs::metadata(&xdg_conf_path).is_err() {
+                format!("{}/.config/tt-rs/words.ron", env::var("HOME")?)
+            } else {
+                xdg_conf_path
+            }
+        };
 
         let mut conts: Vec<String> = from_reader(
             File::open(file_path).with_context(|| "words.ron(~/.config/tt-rs/words.ron) file is incorrect or missing")?
