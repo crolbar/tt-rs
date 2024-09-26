@@ -145,9 +145,16 @@ impl App {
     }
 
     pub fn del_whitespaces(&mut self) {
-        if let Some((last_non_whitespace_index, _)) = self.curr_text.char_indices().rfind(|(_, c)| *c != ' ') {
-            self.curr_text.truncate(last_non_whitespace_index + 1)
-        } else { self.curr_text.clear() }
+        let last_non_whitespace = self
+            .curr_text
+            .char_indices()
+            .rfind(|(_, c)| *c != ' ');
+
+        if let Some((i, _)) = last_non_whitespace {
+            self.curr_text.truncate(i + 1)
+        } else {
+            self.curr_text.clear() 
+        }
     }
 
     pub fn jump_to_next_word(&mut self) {
@@ -211,8 +218,10 @@ impl App {
     
     pub fn is_out_of_time(&self) -> bool {
         if let Some(st) = self.start_time {
-            st.elapsed() >= self.timer_time
-        } else { false }
+            return st.elapsed() >= self.timer_time
+        }
+
+        false
     }
     
     pub fn is_finished_typing(&self) -> bool {

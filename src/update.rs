@@ -1,86 +1,129 @@
-use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::event::{self, Event, KeyEvent, KeyCode, KeyEventKind, KeyModifiers};
 use crate::{app::App, tui::Tui};
 use anyhow::Result;
 
-pub fn update(app: &mut App, tui: &mut Tui) -> Result<()> {
-    if let Event::Key(key) = event::read()? {
-        if key.kind == KeyEventKind::Press {
-            if 
-                    (key.modifiers == KeyModifiers::ALT && key.code == KeyCode::Char('q')) ||
-                    (key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('c')) ||
-                    key.code == KeyCode::Esc
-            {
-                app.exit = true
-            }
-            
-            if key.modifiers == KeyModifiers::ALT {
-                match key.code {
-                    KeyCode::Char('s') => {
-                        app.scroller = !app.scroller;
-
-                        if !app.scroller {
-                            app.target_text.drain(0..app.rect.width as usize / 2);
-                            app.curr_text.drain(0..app.rect.width as usize / 2);
-                        } else {
-                            tui.draw(app)?
-                        }
-                    },
-                    KeyCode::Char('r') => app.restart(false)?,
-                    KeyCode::Char('n') => app.restart(true)?,
-                    _ => ()
-                }
-            }
-
-            else if 
-                key.code == KeyCode::Char('h') && key.modifiers == KeyModifiers::CONTROL ||
-                key.code == KeyCode::Backspace && key.modifiers == KeyModifiers::CONTROL
-            {
-                if 
-                    (!app.scroller ||
-                    app.curr_text.len() as u16 > app.rect.width / 2) &&
-                    !app.is_finished_typing() &&
-                    !app.is_out_of_time()
-                {
-                    app.del_last_word()
-                }
-            } else {
-                match key.code {
-                    KeyCode::Tab => app.restart(true)?,
-                    KeyCode::Char(' ') => app.jump_to_next_word(),
-                    KeyCode::Char(char) => {
-                        if app.start_time == None {
-                            app.start_timer();
-                        }
-
-                        if 
-                            app.target_text.chars().nth(app.curr_text.len()) != Some(' ') &&
-                            !app.is_finished_typing() &&
-                            !app.is_out_of_time() &&
-                            app.target_text.len() != app.curr_text.len()
-                        {
-                            app.curr_text.push(char);
-                            app.check_is_char_corr()?;
-                        }
-                    },
-                    KeyCode::Backspace => {
-                        if
-                            (!app.scroller ||
-                            app.curr_text.len() as u16 > app.rect.width / 2) &&
-                            !app.is_finished_typing() &&
-                            !app.is_out_of_time()
-                        {
-                            if app.curr_text.chars().last() == Some(' ') {
-                                app.del_whitespaces();
-                            } else {
-                                app.curr_text.pop();
-                            }
-                        }
-                    },
-
-                    _ => ()
-                }
-            }
+impl App {
+    fn handle_exit(&mut self, key: KeyEvent) {
+        if 
+            (key.modifiers == KeyModifiers::ALT && key.code == KeyCode::Char('q')) ||
+            (key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('c')) ||
+            key.code == KeyCode::Esc
+        {
+            self.exit = true
         }
     }
-    Ok(())
+
+    fn handle_mod_alt(&mut self, key: KeyEvent, tui: &mut Tui) -> Result<()> {
+        match key.code {
+            KeyCode::Char('s') => {
+                self.scroller = !self.scroller;
+
+                if !self.scroller {
+                    self.target_text.drain(0..self.rect.width as usize / 2);
+                    self.curr_text.drain(0..self.rect.width as usize / 2);
+                } else {
+                    tui.draw(self)?
+                }
+            },
+            KeyCode::Char('r') => self.restart(false)?,
+            KeyCode::Char('n') => self.restart(true)?,
+            _ => ()
+        }
+
+        Ok(())
+    }
+
+    fn handle_mod_ctrl(&mut self, key: KeyEvent) -> Result<()> {
+        match key.code {
+            KeyCode::Char('h') |
+            KeyCode::Char('w') |
+            KeyCode::Backspace =>  {
+                if self.scroller && self.curr_text.len() as u16 <= self.rect.width / 2 {
+                    return Ok(())
+                }
+
+                if self.is_finished_typing() || self.is_out_of_time() {
+                    return Ok(())
+                }
+
+                self.del_last_word()
+            }
+
+            _ => ()
+        }
+
+        Ok(())
+    }
+
+    fn handle_mods(&mut self, key: KeyEvent, tui: &mut Tui) -> Result<()> {
+        match key.modifiers {
+            KeyModifiers::ALT => self.handle_mod_alt(key, tui),
+            KeyModifiers::CONTROL => self.handle_mod_ctrl(key),
+            _ => Ok(())
+        }
+    }
+
+    fn handle_char_input(&mut self, char: char) -> Result<()> {
+        if self.start_time == None {
+            self.start_timer();
+        }
+
+        if self.target_text.chars().nth(self.curr_text.len()) == Some(' ') {
+            return Ok(())
+        }
+
+        if self.is_finished_typing() || self.is_out_of_time() {
+            return Ok(())
+        } 
+
+        if self.target_text.len() == self.curr_text.len() {
+            return Ok(())
+        }
+
+        self.curr_text.push(char);
+        self.check_is_char_corr()?;
+
+        Ok(())
+    }
+
+    fn handle_backspace(&mut self) {
+        if self.scroller && self.curr_text.len() as u16 <= self.rect.width / 2 {
+            return;
+        }
+
+        if self.is_finished_typing() || self.is_out_of_time() {
+            return;
+        }
+
+        if self.curr_text.chars().last() == Some(' ') {
+            self.del_whitespaces();
+        } else {
+            self.curr_text.pop();
+        }
+    }
+
+    pub fn update(&mut self, tui: &mut Tui) -> Result<()> {
+        if let Event::Key(key) = event::read()? {
+            if key.kind != KeyEventKind::Press {
+                return Ok(())
+            }
+
+            self.handle_exit(key);
+
+            if !key.modifiers.is_empty() {
+                self.handle_mods(key, tui)?;
+                return Ok(())
+            }
+
+            match key.code {
+                KeyCode::Tab => self.restart(true)?,
+                KeyCode::Char(' ') => self.jump_to_next_word(),
+                KeyCode::Char(char) => self.handle_char_input(char)?,
+                KeyCode::Backspace => self.handle_backspace(),
+                _ => ()
+            }
+        }
+
+        Ok(())
+    }
 }
