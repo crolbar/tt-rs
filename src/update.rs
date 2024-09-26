@@ -59,7 +59,7 @@ pub fn update(app: &mut App, tui: &mut Tui) -> Result<()> {
                             app.target_text.len() != app.curr_text.len()
                         {
                             app.curr_text.push(char);
-                            app.check_is_char_corr();
+                            app.check_is_char_corr()?;
                         }
                     },
                     KeyCode::Backspace => {

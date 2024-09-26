@@ -220,12 +220,21 @@ impl App {
         self.curr_text.split_whitespace().last().unwrap() == self.target_text.split_whitespace().last().unwrap()
     }
 
-    pub fn check_is_char_corr(&mut self) {
-        if self.curr_text.chars().last().unwrap() == self.target_text.chars().nth(self.curr_text.len() - 1).unwrap() {
+    pub fn check_is_char_corr(&mut self) -> Result<()> {
+        if 
+            self.curr_text.chars().last().unwrap() 
+            == self.target_text.chars().nth(self.curr_text.len() - 1).unwrap() 
+        {
             self.correct_chars += 1;
         } else {
             self.incorrect_chars += 1;
+
+            if std::env::args().find(|i| i == "-d").is_some() {
+                self.restart(true)?;
+            };
         }
+
+        Ok(())
     }
 
     pub fn restart(&mut self, reset_txt: bool) -> Result<()> {
@@ -267,14 +276,5 @@ impl App {
 
         self.curr_text.split_whitespace().enumerate().filter(|(i, w)| *w == target_words[*i]).count() as f64 /
             ((self.end_time.unwrap() - self.start_time.unwrap_or(Instant::now())).as_secs_f64() / 60.0)
-    }
-
-    pub fn restart_if_error(&mut self) -> Result<()> {
-        if std::env::args().find(|i|i == "-d").is_some() {
-            if self.incorrect_chars > 0 {
-                self.restart(true)?;
-            }
-        };
-        Ok(())
     }
 }
