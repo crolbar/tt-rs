@@ -116,3 +116,45 @@ pub fn create_rect(frame_rect: Rect, scroll: bool, is_finished_typing: bool) -> 
         Rect { y: r.y + r.height / 2, ..r}
     } else { r }
 }
+
+impl App {
+    pub fn update_cursor(&mut self, frame: &mut ratatui::Frame) {
+        let mut num_rows = self.rect.y;
+
+        if self.curr_text.len() != 0 {
+            let mut curr_line_width = self.rect.width as usize;
+            let mut last_line_width = 0;
+
+            loop {
+                if curr_line_width < self.target_text.len() {
+                    // check if the char at index rect.width is an whitespace 
+                    if self.target_text.chars().nth(curr_line_width - 1).unwrap() != ' ' {
+                        let whitespace_before_word = self.target_text
+                            .split_at(curr_line_width).0
+                            .rsplit_once(' ').unwrap().0
+                        .len() + 1;
+
+                        let word_lenght = self.target_text
+                            .split_at(whitespace_before_word).1
+                            .split_once(' ').unwrap_or((&self.target_text, "")).0
+                        .len();
+
+                        if curr_line_width - whitespace_before_word < word_lenght {
+                            curr_line_width = whitespace_before_word
+                        } else { curr_line_width += 1 } // if the curr_line_width indexes the end char of an word we +1
+                    }                                   // so curr_line_width indexes the whitespace
+
+                    // if at the next line
+                    if self.curr_text.len() >= curr_line_width {
+                        num_rows += 1;
+
+                        last_line_width = curr_line_width;
+                        curr_line_width += self.rect.width as usize;
+                    } else { break }
+                } else { break }
+            }
+
+            frame.set_cursor(((self.curr_text.len() - last_line_width) as u16) + self.rect.x, num_rows)
+        }
+    }
+}

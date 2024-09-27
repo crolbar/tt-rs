@@ -1,8 +1,9 @@
 mod update;
 mod tui;
 mod app;
-use app::App;
+mod util;
 mod ui;
+use app::App;
 use anyhow::Result;
 use std::time::Duration;
 use crossterm::event::poll;

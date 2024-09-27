@@ -25,8 +25,8 @@ impl App {
                     tui.draw(self)?
                 }
             },
-            KeyCode::Char('r') => self.restart(false)?,
-            KeyCode::Char('n') => self.restart(true)?,
+            KeyCode::Char('r') => self.restart_test()?,
+            KeyCode::Char('n') => self.next_test()?,
             _ => ()
         }
 
@@ -116,7 +116,7 @@ impl App {
             }
 
             match key.code {
-                KeyCode::Tab => self.restart(true)?,
+                KeyCode::Tab => self.restart_test()?,
                 KeyCode::Char(' ') => self.jump_to_next_word(),
                 KeyCode::Char(char) => self.handle_char_input(char)?,
                 KeyCode::Backspace => self.handle_backspace(),

@@ -1,9 +1,8 @@
-use std::{env::{self, args}, fs::File, time::{Duration, Instant}};
+use std::{env::args, time::{Duration, Instant}};
 use anyhow::{Context, Result};
-use rand::{seq::SliceRandom, thread_rng, Rng};
 use ratatui::layout::Rect;
-use ron::de::from_reader;
 use crate::tui::Tui;
+use crate::util::get_prev_whitespace;
 
 pub struct App {
     pub exit: bool,
@@ -55,93 +54,20 @@ impl App {
                 incorrect_chars: 0,
                 rect: Rect::default(),
                 curr_text: String::new(),
-                target_text: match args.contains(&"-q".to_string()) {
-                    true => App::get_random_quotes()?,
-                    false => App::get_random_words(args)?,
-                },
+                target_text: App::gen_target_text(args)?,
                 timer_time
             },
             Tui::enter()?
         ))
     }
 
-    pub fn get_random_quotes() -> Result<String> {
-        let file_path = {
-            let xdg_conf_path = format!("{}/tt-rs/quotes.ron", env::var("XDG_CONFIG_HOME")?);
-
-            if std::fs::metadata(&xdg_conf_path).is_err() {
-                format!("{}/.config/tt-rs/quotes.ron", env::var("HOME")?)
-            } else {
-                xdg_conf_path
-            }
-        };
-        
-        let conts: Vec<String> = from_reader(
-            File::open(file_path).with_context(|| "quotes.ron(~/.config/tt-rs/quotes.ron) file is incorrect or missing")?
-        )?;
-
-        Ok(conts[thread_rng().gen_range(0..conts.len())].clone())
-    }
-
-    pub fn get_random_words(args: Vec<String>) -> Result<String> {
-        let file_path = {
-            let xdg_conf_path = format!("{}/tt-rs/words.ron", env::var("XDG_CONFIG_HOME")?);
-
-            if std::fs::metadata(&xdg_conf_path).is_err() {
-                format!("{}/.config/tt-rs/words.ron", env::var("HOME")?)
-            } else {
-                xdg_conf_path
-            }
-        };
-
-        let mut conts: Vec<String> = from_reader(
-            File::open(file_path).with_context(|| "words.ron(~/.config/tt-rs/words.ron) file is incorrect or missing")?
-        )?;
-
-        let mut rng = thread_rng();
-
-        conts.shuffle(&mut rng);
-
-        let txt_len = {
-            if let Some(length) = args.iter().position(|i| i == &"-w".to_string()) {
-                args.get(length + 1)
-                        .with_context(|| "add number after -w (e.g: -w 30)")?
-                    .parse()
-                        .with_context(|| "incorrect number: add number after -w (e.g: -w 30)")?
-            } else { 25 }
-        };
-
-        Ok(conts[..txt_len].join(" "))
-    }
-
     pub fn del_last_word(&mut self) {
-        if let Some(_) = self.curr_text.chars().rev().skip(1).find(|c| *c == ' ') {
+        let word_start = get_prev_whitespace(
+            &self.target_text,
+            self.curr_text.len().saturating_sub(1)
+        );
 
-            self.curr_text.truncate(
-                if let Some((start_of_word, _)) = 
-                    self.target_text.char_indices()
-                        .take(self.curr_text.len())
-                        .collect::<Vec<_>>().iter()
-                        .rfind(|(_, c)| *c == ' ')
-                {
-                    if *start_of_word == self.curr_text.len() - 1 {
-                        if let Some(previous_whitespace) = 
-                            self.target_text.char_indices()
-                                .take(self.curr_text.len())
-                                .collect::<Vec<_>>().iter()
-                                .rev().skip(1)
-                                .find(|(_, c)| *c == ' ')
-                        {
-                            previous_whitespace.0 + 1
-                        } else { 0 }
-                    } else { start_of_word + 1 }
-                }
-
-                else {unreachable!()}
-            )
-        } else {
-            self.curr_text.clear()
-        }
+        self.curr_text.truncate(word_start + ((word_start != 0) as usize));
     }
 
     pub fn del_whitespaces(&mut self) {
@@ -158,64 +84,27 @@ impl App {
     }
 
     pub fn jump_to_next_word(&mut self) {
-        if self.curr_text.chars().last() != Some(' ') {
-            if let Some(next_whitespace) = self.target_text
-                .chars().enumerate()
-                .position(|(i, c)| c == ' ' && i >= self.curr_text.len())
-            {
-                self.curr_text.push_str(
-                    &std::iter::repeat(' ').take(
-                         (next_whitespace + 1) - self.curr_text.len()
-                    ).collect::<String>()
-                )
-            }
+        if self.curr_text.chars().last() == Some(' ') {
+            return;
         }
-    }
 
-    pub fn update_cursor(&mut self, frame: &mut ratatui::Frame) {
-        let mut num_rows = self.rect.y;
+        let next_whitespace_wrap = self.target_text
+            .chars().enumerate().skip(self.curr_text.len())
+                .find(|(_, c)| *c == ' ');
 
-        if self.curr_text.len() != 0 {
-                let mut curr_line_width = self.rect.width as usize;
-                let mut last_line_width = 0;
+        if let Some((next_whitespace_idx, _)) = next_whitespace_wrap {
+            let fill = std::iter::repeat(' ').take(
+                (next_whitespace_idx + 1) - self.curr_text.len()
+            ).collect::<String>();
 
-                loop {
-                    if curr_line_width < self.target_text.len() {
-                        // check if the char at index rect.width is an whitespace 
-                        if self.target_text.chars().nth(curr_line_width - 1).unwrap() != ' ' {
-                            let whitespace_before_word = self.target_text
-                                .split_at(curr_line_width).0
-                                .rsplit_once(' ').unwrap().0
-                            .len() + 1;
-
-                            let word_lenght = self.target_text
-                                .split_at(whitespace_before_word).1
-                                .split_once(' ').unwrap_or((&self.target_text, "")).0
-                            .len();
-
-                            if curr_line_width - whitespace_before_word < word_lenght {
-                                curr_line_width = whitespace_before_word
-                            } else { curr_line_width += 1 } // if the curr_line_width indexes the end char of an word we +1
-                        }                                   // so curr_line_width indexes the whitespace
-
-                        // if at the next line
-                        if self.curr_text.len() >= curr_line_width {
-                            num_rows += 1;
-
-                            last_line_width = curr_line_width;
-                            curr_line_width += self.rect.width as usize;
-                        } else { break }
-                    } else { break }
-                }
-
-            frame.set_cursor(((self.curr_text.len() - last_line_width) as u16) + self.rect.x, num_rows)
+            self.curr_text.push_str(&fill);
         }
     }
 
     pub fn start_timer(&mut self) {
         self.start_time = Some(Instant::now());
     }
-    
+
     pub fn is_out_of_time(&self) -> bool {
         if let Some(st) = self.start_time {
             return st.elapsed() >= self.timer_time
@@ -223,56 +112,72 @@ impl App {
 
         false
     }
-    
+
     pub fn is_finished_typing(&self) -> bool {
-        self.curr_text.len() == self.target_text.len() &&
-        self.curr_text.split_whitespace().last().unwrap() == self.target_text.split_whitespace().last().unwrap()
+        if self.curr_text.len() == self.target_text.len() {
+            let last_curr_word = self.curr_text.split_whitespace().last().unwrap();
+            let last_target_word = self.target_text.split_whitespace().last().unwrap();
+
+            return last_curr_word == last_target_word;
+        }
+
+        false
     }
 
     pub fn check_is_char_corr(&mut self) -> Result<()> {
-        if 
-            self.curr_text.chars().last().unwrap() 
-            == self.target_text.chars().nth(self.curr_text.len() - 1).unwrap() 
-        {
+        let last_curr_char = self.curr_text.chars().last().unwrap();
+        let last_target_char = self.target_text.chars().nth(self.curr_text.len() - 1).unwrap();
+
+        if last_curr_char == last_target_char {
             self.correct_chars += 1;
         } else {
             self.incorrect_chars += 1;
 
             if std::env::args().find(|i| i == "-d").is_some() {
-                self.restart(true)?;
+                self.next_test()?;
             };
         }
 
         Ok(())
     }
 
-    pub fn restart(&mut self, reset_txt: bool) -> Result<()> {
+    fn gen_target_text(args: Vec<String>) -> Result<String> {
+        match args.contains(&"-q".to_string()) {
+            true => crate::util::get_random_quotes(),
+            false => crate::util::get_random_words(args)
+        }
+    }
+
+    pub fn gen_scroller_filter(&self) -> String {
+        std::iter::repeat(' ')
+            .take(self.rect.width as usize / 2)
+            .collect()
+    }
+
+    pub fn next_test(&mut self) -> Result<()> {
+        let args: Vec<String> = args().collect();
+        self.target_text = App::gen_target_text(args)?;
+
+        self.restart_test()?;
+
+        if self.scroller {
+            self.target_text.insert_str(0, &self.gen_scroller_filter());
+        }
+
+        Ok(())
+    }
+
+    pub fn restart_test(&mut self) -> Result<()> {
         self.correct_chars = 0;
         self.incorrect_chars = 0;
         self.curr_text.clear();
         self.start_time = None;
         self.end_time = None;
 
-        let args: Vec<String> = args().collect();
-
-        if reset_txt {
-            self.target_text = 
-                match args.contains(&"-q".to_string()) {
-                    true => App::get_random_quotes()?,
-                    false => App::get_random_words(args)?
-                }
-        }
-
         if self.scroller {
-            let filler = std::iter::repeat(' ').take(self.rect.width as usize / 2).collect::<String>();
-            self.curr_text.insert_str(0, &filler);
-
-            if reset_txt {
-                self.target_text.insert_str(0, &filler);
-            }
-        } else if let Some(o) = Some(self.target_text.chars().take_while(|i| *i == ' ').count()) {
-            self.target_text.drain(0..o);
+            self.curr_text.insert_str(0, &self.gen_scroller_filter());
         }
+
         Ok(())
     }
 
