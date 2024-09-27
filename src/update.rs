@@ -110,7 +110,7 @@ impl App {
 
             self.handle_exit(key);
 
-            if !key.modifiers.is_empty() {
+            if !key.modifiers.is_empty() && key.modifiers != KeyModifiers::SHIFT {
                 self.handle_mods(key, tui)?;
                 return Ok(())
             }
