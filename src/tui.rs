@@ -1,4 +1,8 @@
-use crossterm::{cursor::SetCursorStyle, event::{DisableMouseCapture, EnableMouseCapture}, execute, terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}
+use crossterm::{
+    cursor::SetCursorStyle,
+    event::{DisableMouseCapture, EnableMouseCapture},
+    execute, 
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}
 };
 use ratatui::{Terminal, prelude::CrosstermBackend};
 use std::io::{Stderr, Result, stderr};
@@ -10,25 +14,35 @@ pub struct Tui {
 }
 
 impl Tui {
-   pub fn enter() -> Result<Self> {
-       enable_raw_mode()?;
-       execute!(stderr(), EnterAlternateScreen, EnableMouseCapture, SetCursorStyle::SteadyBar)?;
-       let mut term = Terminal::new(CrosstermBackend::new(stderr()))?;
-       term.hide_cursor()?;
-       term.clear()?;
+    pub fn enter() -> Result<Self> {
+        enable_raw_mode()?;
+        execute!(stderr(), EnterAlternateScreen, EnableMouseCapture, SetCursorStyle::SteadyBar)?;
+        let mut term = Terminal::new(CrosstermBackend::new(stderr()))?;
+        term.clear()?;
 
-       Ok(Tui{term})
-   }
+        let panic_hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |panic| {
+            Self::leave_tui().unwrap();
+            panic_hook(panic);
+        }));
 
-   pub fn draw(&mut self, app: &mut App) -> Result<()> {
-       self.term.draw(|frame| render(app, frame))?;
-       Ok(())
-   }
+        Ok(Tui{term})
+    }
 
-   pub fn exit(&mut self) -> Result<()> {
-       self.term.show_cursor()?;
-       execute!(stderr(), LeaveAlternateScreen, DisableMouseCapture, SetCursorStyle::DefaultUserShape)?;
-       disable_raw_mode()?;
-       Ok(())
-   }
+    pub fn draw(&mut self, app: &mut App) -> Result<()> {
+        self.term.draw(|frame| render(app, frame))?;
+        Ok(())
+    }
+
+    pub fn leave_tui() -> Result<()> {
+        execute!(stderr(), LeaveAlternateScreen, DisableMouseCapture, SetCursorStyle::DefaultUserShape)?;
+        disable_raw_mode()?;
+        Ok(())
+    }
+
+    pub fn exit(&mut self) -> Result<()> {
+        Self::leave_tui().unwrap();
+        self.term.show_cursor()?;
+        Ok(())
+    }
 }
