@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use crate::app::App;
 use ratatui::prelude::*;
 use ratatui::style::Stylize;
@@ -17,6 +17,10 @@ pub fn render(app: &mut App, frame: &mut Frame) {
             app.curr_text.insert_str(0, &filler);
             app.target_text.insert_str(0, &filler);
         }
+
+        frame.set_cursor(app.rect.x + app.rect.width / 2, app.rect.y);
+    } else {
+        app.update_cursor(frame);
     }
 
     let chars: Vec<Span> = {
@@ -60,25 +64,23 @@ pub fn render(app: &mut App, frame: &mut Frame) {
     }
 }
 
-fn render_stats(app: &mut App, frame: &mut Frame) {
+fn render_stats(app: &App, frame: &mut Frame) {
     frame.render_widget(
         Paragraph::new(
             format!(
                 "WPM: {:.0}\n\nAccuracy: {:.2}\ncorrect: {}\nincorrect: {}\nwords: {}\n\nTime: {}s\n\n\n\n\n\n\n TAB / ALT + n for next test, ALT + r to retry test",
                     app.get_wpm(),
-                    (app.correct_chars as f64 / (app.correct_chars + app.incorrect_chars) as f64) * 100.0,
-                    app.correct_chars,
-                    app.incorrect_chars,
+                    app.get_accuracy(),
+                    app.get_correct(),
+                    app.get_incorrect(),
                     app.target_text.split_whitespace().count(),
-                    (app.end_time.unwrap() - app.start_time.unwrap_or(Instant::now())).as_secs()
+                    app.get_time().as_secs()
             )).alignment(Alignment::Center),
         app.rect
     )
 }
 
-fn render_wrapped(app: &mut App, frame: &mut Frame, chars: Vec<Span>) {
-    app.update_cursor(frame);
-
+fn render_wrapped(app: &App, frame: &mut Frame, chars: Vec<Span>) {
     frame.render_widget(
         Paragraph::new(Line::from(chars))
             .wrap(Wrap::default()),
@@ -87,8 +89,6 @@ fn render_wrapped(app: &mut App, frame: &mut Frame, chars: Vec<Span>) {
 }
 
 fn render_scroller(app: &App, frame: &mut Frame, chars: Vec<Span>) {
-    frame.set_cursor(app.rect.x + app.rect.width / 2, app.rect.y);
-
     frame.render_widget(
         Paragraph::new(Line::from(chars))
             .scroll((0, (app.curr_text.len() as u16).saturating_sub(app.rect.width / 2))),
@@ -118,7 +118,7 @@ pub fn create_rect(frame_rect: Rect, scroll: bool, is_finished_typing: bool) -> 
 }
 
 impl App {
-    pub fn update_cursor(&mut self, frame: &mut ratatui::Frame) {
+    pub fn update_cursor(&self, frame: &mut ratatui::Frame) {
         let mut num_rows = self.rect.y;
 
         if self.curr_text.len() != 0 {

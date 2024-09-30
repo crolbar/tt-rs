@@ -83,6 +83,10 @@ impl App {
         self.curr_text.push(char);
         self.check_is_char_corr()?;
 
+        if self.is_finished_typing() && self.end_time == None {
+            self.stop_timer();
+        }
+
         Ok(())
     }
 

@@ -13,8 +13,8 @@ pub struct App {
     pub start_time: Option<Instant>,
     pub end_time: Option<Instant>,
     pub timer_time: Duration,
-    pub correct_chars: u32,
-    pub incorrect_chars: u32,
+    correct_chars: u32,
+    incorrect_chars: u32,
 }
 
 impl App {
@@ -41,7 +41,9 @@ impl App {
                         .parse()
                             .with_context(|| "incorrect duration: add time after -t in secs (e.g: -t 30)")?
                     )
-                } else { Duration::from_secs(1200) }
+                } else {
+                    Duration::from_secs(1200) 
+                }
         };
 
         Ok((
@@ -103,6 +105,10 @@ impl App {
 
     pub fn start_timer(&mut self) {
         self.start_time = Some(Instant::now());
+    }
+
+    pub fn stop_timer(&mut self) {
+        self.end_time = Some(Instant::now());
     }
 
     pub fn is_out_of_time(&self) -> bool {
@@ -181,14 +187,35 @@ impl App {
         Ok(())
     }
 
-    pub fn get_wpm(&mut self) -> f64 {
-        if self.end_time == None {
-            self.end_time = Some(Instant::now())
-        }
-
+    pub fn get_wpm(&self) -> f64 {
         let target_words: Vec<&str> = self.target_text.split_whitespace().collect();
 
-        self.curr_text.split_whitespace().enumerate().filter(|(i, w)| *w == target_words[*i]).count() as f64 /
-            ((self.end_time.unwrap() - self.start_time.unwrap_or(Instant::now())).as_secs_f64() / 60.0)
+        self.curr_text
+            .split_whitespace()
+            .enumerate()
+            .filter(|(i, w)| *w == target_words[*i])
+            .count() as f64
+            / (self.get_time().as_secs_f64() / 60.0)
+    }
+
+    pub fn get_time(&self) -> Duration {
+        // this needs an fix (we can finish before the timer reaches 0)
+        if std::env::args().find(|a| a == "-t").is_some() {
+            return self.timer_time
+        }
+
+        self.end_time.unwrap() - self.start_time.unwrap()
+    }
+
+    pub fn get_accuracy(&self) -> f64 {
+        (self.correct_chars as f64 / (self.correct_chars + self.incorrect_chars) as f64) * 100.0
+    }
+
+    pub fn get_correct(&self) -> u32 {
+        self.correct_chars
+    }
+
+    pub fn get_incorrect(&self) -> u32 {
+        self.incorrect_chars
     }
 }
