@@ -199,8 +199,9 @@ impl App {
     }
 
     pub fn get_time(&self) -> Duration {
-        // this needs an fix (we can finish before the timer reaches 0)
-        if std::env::args().find(|a| a == "-t").is_some() {
+        if self.end_time.is_none() 
+            && std::env::args().find(|a| a == "-t").is_some() 
+        {
             return self.timer_time
         }
 
