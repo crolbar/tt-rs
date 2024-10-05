@@ -17,21 +17,7 @@ pub struct App {
 }
 
 impl App {
-    pub fn new() -> Result<(Self, Tui)> {
-        let args: Vec<String> = std::env::args().collect();
-
-        if args.contains(&"-h".to_string()) || args.contains(&"--help".to_string()) {
-            println!(
-                "\
-                -t <TIME>     Specify time for the timer in secs \
-                \n-w <NUM>      Specify the number of words in the test \
-                \n-q            Test contains quotes instead of words \
-                \n-d            Each time you make an mistake the test will restart \
-                "
-            );
-            std::process::exit(0);
-        }
-
+    pub fn new(args: &Vec<String>) -> Result<(Self, Tui)> {
         Ok((
             Self {
                 exit: false,
