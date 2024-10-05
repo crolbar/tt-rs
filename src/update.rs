@@ -16,9 +16,9 @@ impl App {
     fn handle_mod_alt(&mut self, key: KeyEvent, tui: &mut Tui) -> Result<()> {
         match key.code {
             KeyCode::Char('s') => {
-                self.scroller = !self.scroller;
+                self.swap_mode();
 
-                if !self.scroller {
+                if !self.is_in_scroller_mode() {
                     self.target_text.drain(0..self.rect.width as usize / 2);
                     self.curr_text.drain(0..self.rect.width as usize / 2);
                 } else {
@@ -38,7 +38,7 @@ impl App {
             KeyCode::Char('h') |
             KeyCode::Char('w') |
             KeyCode::Backspace =>  {
-                if self.scroller && self.curr_text.len() as u16 <= self.rect.width / 2 {
+                if self.is_in_scroller_mode() && self.curr_text.len() as u16 <= self.rect.width / 2 {
                     return Ok(())
                 }
 
@@ -91,7 +91,7 @@ impl App {
     }
 
     fn handle_backspace(&mut self) {
-        if self.scroller && self.curr_text.len() as u16 <= self.rect.width / 2 {
+        if self.is_in_scroller_mode() && self.curr_text.len() as u16 <= self.rect.width / 2 {
             return;
         }
 

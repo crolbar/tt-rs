@@ -10,7 +10,7 @@ pub struct App {
     pub target_text: String,
     pub curr_text: String,
     pub rect: Rect,
-    pub scroller: bool,
+    scroller: bool,
     pub timer: Timer,
     correct_chars: u32,
     incorrect_chars: u32,
@@ -161,5 +161,13 @@ impl App {
 
     pub fn get_incorrect(&self) -> u32 {
         self.incorrect_chars
+    }
+
+    pub fn is_in_scroller_mode(&self) -> bool {
+        self.scroller
+    }
+
+    pub fn swap_mode(&mut self) {
+        self.scroller = !self.scroller;
     }
 }

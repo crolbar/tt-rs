@@ -5,49 +5,53 @@ use ratatui::style::Stylize;
 use ratatui::widgets::*;
 
 pub fn render(app: &mut App, frame: &mut Frame) {
-    app.rect = create_rect(frame.size(), app.scroller, app.is_finished_typing());
-
-    if app.scroller {
-        // centering of the txt
-        let filler_len = app.target_text.chars().take_while(|c| *c == ' ').count();
-        if filler_len != app.rect.width as usize / 2 {
-            app.curr_text.drain(0..filler_len);
-            app.target_text.drain(0..filler_len);
-            let filler = std::iter::repeat(' ').take(app.rect.width as usize / 2).collect::<String>();
-            app.curr_text.insert_str(0, &filler);
-            app.target_text.insert_str(0, &filler);
-        }
-
-        frame.set_cursor(app.rect.x + app.rect.width / 2, app.rect.y);
-    } else {
-        app.update_cursor(frame);
-    }
-
-    let chars: Vec<Span> = {
-        app.target_text.chars().enumerate().map(|(i, target_c)| {
-            if let Some(c) = app.curr_text.chars().nth(i) {
-                if c == target_c {
-                    target_c.to_string().white()
-                } else {
-                    target_c.to_string().light_red()
-                }
-            } else {
-                target_c.to_string().fg(Color::Indexed(244))
-            }
-        }).collect()
-    };
+    app.rect = create_rect(frame.size(), app.is_in_scroller_mode(), app.is_finished_typing());
 
     match app.is_finished_typing() || app.timer.is_out_of_time() {
         true => render_stats(app, frame),
-        false => match app.scroller {
-            true => render_scroller(app, frame, chars),
-            false => render_wrapped(app, frame, chars)
+        false => match app.is_in_scroller_mode() {
+            true => {
+                center_scroller_txt(app);
+                frame.set_cursor(app.rect.x + app.rect.width / 2, app.rect.y);
+
+                render_scroller(app, frame, gen_chars(&app.target_text, &app.curr_text))
+            },
+            false => {
+                app.update_cursor(frame);
+
+                render_wrapped(app, frame, gen_chars(&app.target_text, &app.curr_text))
+            }
         }
     }
 
     if app.timer.is_started() {
         render_timer(app, frame);
     }
+}
+
+fn center_scroller_txt(app: &mut App) {
+    let filler_len = app.target_text.chars().take_while(|c| *c == ' ').count();
+    if filler_len != app.rect.width as usize / 2 {
+        app.curr_text.drain(0..filler_len);
+        app.target_text.drain(0..filler_len);
+        let filler = std::iter::repeat(' ').take(app.rect.width as usize / 2).collect::<String>();
+        app.curr_text.insert_str(0, &filler);
+        app.target_text.insert_str(0, &filler);
+    }
+}
+
+fn gen_chars<'a>(target_text: &'a String, curr_text: &'a String) -> Vec<Span<'a>> {
+    target_text.chars().enumerate().map(|(i, target_c)| {
+        if let Some(c) = curr_text.chars().nth(i) {
+            if c == target_c {
+                target_c.to_string().white()
+            } else {
+                target_c.to_string().light_red()
+            }
+        } else {
+            target_c.to_string().fg(Color::Indexed(244))
+        }
+    }).collect()
 }
 
 fn render_timer(app: &App, frame: &mut Frame) {
