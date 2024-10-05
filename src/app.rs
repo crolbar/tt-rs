@@ -1,7 +1,8 @@
-use std::{env::args, time::{Duration, Instant}};
-use anyhow::{Context, Result};
+use std::env::args;
+use anyhow::Result;
 use ratatui::layout::Rect;
 use crate::tui::Tui;
+use crate::timer::Timer;
 use crate::util::get_prev_whitespace;
 
 pub struct App {
@@ -10,9 +11,7 @@ pub struct App {
     pub curr_text: String,
     pub rect: Rect,
     pub scroller: bool,
-    pub start_time: Option<Instant>,
-    pub end_time: Option<Instant>,
-    pub timer_time: Duration,
+    pub timer: Timer,
     correct_chars: u32,
     incorrect_chars: u32,
 }
@@ -33,31 +32,16 @@ impl App {
             std::process::exit(0);
         }
 
-        let timer_time = {
-                if let Some(time) = args.iter().position(|i| i == &"-t".to_string()) {
-                    Duration::from_secs(
-                        args.get(time + 1)
-                            .with_context(|| "add time after -t in secs (e.g: -t 30)")?
-                        .parse()
-                            .with_context(|| "incorrect duration: add time after -t in secs (e.g: -t 30)")?
-                    )
-                } else {
-                    Duration::from_secs(1200) 
-                }
-        };
-
         Ok((
             Self {
                 exit: false,
                 scroller: false,
-                start_time: None,
-                end_time: None,
+                timer: Timer::new(&args)?,
                 correct_chars: 0,
                 incorrect_chars: 0,
                 rect: Rect::default(),
                 curr_text: String::new(),
-                target_text: App::gen_target_text(args)?,
-                timer_time
+                target_text: App::gen_target_text(&args)?,
             },
             Tui::enter()?
         ))
@@ -103,22 +87,6 @@ impl App {
         }
     }
 
-    pub fn start_timer(&mut self) {
-        self.start_time = Some(Instant::now());
-    }
-
-    pub fn stop_timer(&mut self) {
-        self.end_time = Some(Instant::now());
-    }
-
-    pub fn is_out_of_time(&self) -> bool {
-        if let Some(st) = self.start_time {
-            return st.elapsed() >= self.timer_time
-        }
-
-        false
-    }
-
     pub fn is_finished_typing(&self) -> bool {
         if self.curr_text.len() == self.target_text.len() {
             let last_curr_word = self.curr_text.split_whitespace().last().unwrap();
@@ -147,7 +115,7 @@ impl App {
         Ok(())
     }
 
-    fn gen_target_text(args: Vec<String>) -> Result<String> {
+    fn gen_target_text(args: &Vec<String>) -> Result<String> {
         match args.contains(&"-q".to_string()) {
             true => crate::util::get_random_quotes(),
             false => crate::util::get_random_words(args)
@@ -162,7 +130,7 @@ impl App {
 
     pub fn next_test(&mut self) -> Result<()> {
         let args: Vec<String> = args().collect();
-        self.target_text = App::gen_target_text(args)?;
+        self.target_text = App::gen_target_text(&args)?;
 
         self.restart_test()?;
 
@@ -177,8 +145,7 @@ impl App {
         self.correct_chars = 0;
         self.incorrect_chars = 0;
         self.curr_text.clear();
-        self.start_time = None;
-        self.end_time = None;
+        self.timer.reset();
 
         if self.scroller {
             self.curr_text.insert_str(0, &self.gen_scroller_filter());
@@ -195,17 +162,7 @@ impl App {
             .enumerate()
             .filter(|(i, w)| *w == target_words[*i])
             .count() as f64
-            / (self.get_time().as_secs_f64() / 60.0)
-    }
-
-    pub fn get_time(&self) -> Duration {
-        if self.end_time.is_none() 
-            && std::env::args().find(|a| a == "-t").is_some() 
-        {
-            return self.timer_time
-        }
-
-        self.end_time.unwrap() - self.start_time.unwrap()
+            / (self.timer.get_time().as_secs_f64() / 60.0)
     }
 
     pub fn get_accuracy(&self) -> f64 {

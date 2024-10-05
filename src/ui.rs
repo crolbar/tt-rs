@@ -26,18 +26,18 @@ pub fn render(app: &mut App, frame: &mut Frame) {
     let chars: Vec<Span> = {
         app.target_text.chars().enumerate().map(|(i, target_c)| {
             if let Some(c) = app.curr_text.chars().nth(i) {
-                    if c == target_c {
-                        target_c.to_string().white()
-                    } else {
-                        target_c.to_string().light_red()
-                    }
+                if c == target_c {
+                    target_c.to_string().white()
+                } else {
+                    target_c.to_string().light_red()
+                }
             } else {
                 target_c.to_string().fg(Color::Indexed(244))
             }
         }).collect()
     };
 
-    match app.is_finished_typing() || app.is_out_of_time() {
+    match app.is_finished_typing() || app.timer.is_out_of_time() {
         true => render_stats(app, frame),
         false => match app.scroller {
             true => render_scroller(app, frame, chars),
@@ -45,22 +45,26 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         }
     }
 
-    if let Some(start_time) = app.start_time {
-        if ( // if there is an time specified show time remainning else show time for 2 secs
-            std::env::args().find(|i| i == "-t").is_some() ||
-            (app.timer_time == Duration::from_secs(1200) && start_time.elapsed() < Duration::from_secs(2))
-           ) && !app.is_finished_typing() 
-        {
-            let area = Rect { y: app.rect.y - 2, ..app.rect };
+    if app.timer.is_started() {
+        render_timer(app, frame);
+    }
+}
 
-            frame.render_widget(
-                Paragraph::new(
-                    format!("{}", 
-                        app.timer_time.as_secs().saturating_sub(start_time.elapsed().as_secs())
-                    )),
-                area
-            )
-        } 
+fn render_timer(app: &App, frame: &mut Frame) {
+    if
+        std::env::args().find(|i| i == "-t").is_none()
+            && app.timer.get_elapsed() > Duration::from_secs(3)
+    {
+        return;
+    }
+
+    if !app.is_finished_typing() {
+        let area = Rect { y: app.rect.y - 2, ..app.rect };
+
+        frame.render_widget(
+            Paragraph::new(app.timer.get_remaining().to_string()),
+            area
+        )
     }
 }
 
@@ -74,7 +78,7 @@ fn render_stats(app: &App, frame: &mut Frame) {
                     app.get_correct(),
                     app.get_incorrect(),
                     app.target_text.split_whitespace().count(),
-                    app.get_time().as_secs()
+                    app.timer.get_time().as_secs()
             )).alignment(Alignment::Center),
         app.rect
     )

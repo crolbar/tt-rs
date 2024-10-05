@@ -3,6 +3,7 @@ mod tui;
 mod app;
 mod util;
 mod ui;
+mod timer;
 use app::App;
 use anyhow::Result;
 use std::time::Duration;

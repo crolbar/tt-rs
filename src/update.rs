@@ -42,7 +42,7 @@ impl App {
                     return Ok(())
                 }
 
-                if self.is_finished_typing() || self.is_out_of_time() {
+                if self.is_finished_typing() || self.timer.is_out_of_time() {
                     return Ok(())
                 }
 
@@ -64,15 +64,15 @@ impl App {
     }
 
     fn handle_char_input(&mut self, char: char) -> Result<()> {
-        if self.start_time == None {
-            self.start_timer();
+        if !self.timer.is_started() {
+            self.timer.start();
         }
 
         if self.target_text.chars().nth(self.curr_text.len()) == Some(' ') {
             return Ok(())
         }
 
-        if self.is_finished_typing() || self.is_out_of_time() {
+        if self.is_finished_typing() || self.timer.is_out_of_time() {
             return Ok(())
         } 
 
@@ -83,8 +83,8 @@ impl App {
         self.curr_text.push(char);
         self.check_is_char_corr()?;
 
-        if self.is_finished_typing() && self.end_time == None {
-            self.stop_timer();
+        if self.is_finished_typing() && !self.timer.is_stopped() {
+            self.timer.stop();
         }
 
         Ok(())
@@ -95,7 +95,7 @@ impl App {
             return;
         }
 
-        if self.is_finished_typing() || self.is_out_of_time() {
+        if self.is_finished_typing() || self.timer.is_out_of_time() {
             return;
         }
 

@@ -21,7 +21,7 @@ pub fn get_random_quotes() -> Result<String> {
     Ok(conts[thread_rng().gen_range(0..conts.len())].clone())
 }
 
-pub fn get_random_words(args: Vec<String>) -> Result<String> {
+pub fn get_random_words(args: &Vec<String>) -> Result<String> {
     let file_path = {
         let xdg_conf_path = format!("{}/tt-rs/words.ron", env::var("XDG_CONFIG_HOME")?);
 
