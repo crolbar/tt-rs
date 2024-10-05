@@ -46,7 +46,7 @@ impl Timer {
     }
 
     pub fn is_stopped(&self) -> bool {
-        self.start_time.is_some()
+        self.end_time.is_some()
     }
 
     /// can fail if timer not started
