@@ -9,7 +9,7 @@ impl App {
             (key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('c')) ||
             key.code == KeyCode::Esc
         {
-            self.exit = true
+            self.exit();
         }
     }
 

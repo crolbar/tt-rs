@@ -6,7 +6,7 @@ use crate::timer::Timer;
 use crate::util::get_prev_whitespace;
 
 pub struct App {
-    pub exit: bool,
+    exit: bool,
     pub target_text: String,
     pub curr_text: String,
     pub rect: Rect,
@@ -32,6 +32,12 @@ impl App {
             Tui::enter()?
         ))
     }
+
+    pub fn should_exit(&self) -> bool {
+        self.exit
+    }
+
+    pub fn exit(&mut self)  { self.exit = true; }
 
     pub fn del_last_word(&mut self) {
         let word_start = get_prev_whitespace(

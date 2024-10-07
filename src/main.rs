@@ -22,7 +22,7 @@ fn main() -> Result<()> {
 
     let (mut app, mut tui) = App::new(&args)?;
 
-    while !app.exit {
+    while !app.should_exit() {
         tui.draw(&mut app)?;
 
         if poll(Duration::from_secs(2))? {
