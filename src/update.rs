@@ -120,7 +120,7 @@ impl App {
             }
 
             match key.code {
-                KeyCode::Tab => self.restart_test()?,
+                KeyCode::Tab => self.next_test()?,
                 KeyCode::Char(' ') => self.jump_to_next_word(),
                 KeyCode::Char(char) => self.handle_char_input(char)?,
                 KeyCode::Backspace => self.handle_backspace(),
