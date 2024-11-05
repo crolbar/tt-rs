@@ -5,23 +5,11 @@ use ratatui::style::Stylize;
 use ratatui::widgets::*;
 
 pub fn render(app: &mut App, frame: &mut Frame) {
-    app.rect = create_rect(frame.size(), app.is_in_scroller_mode(), app.is_finished_typing());
+    app.update_rect(frame.size());
 
     match app.is_finished_typing() || app.timer.is_out_of_time() {
         true => render_stats(app, frame),
-        false => match app.is_in_scroller_mode() {
-            true => {
-                center_scroller_txt(app);
-                frame.set_cursor(app.rect.x + app.rect.width / 2, app.rect.y);
-
-                render_scroller(app, frame, gen_chars(&app.target_text, &app.curr_text))
-            },
-            false => {
-                app.update_cursor(frame);
-
-                render_wrapped(app, frame, gen_chars(&app.target_text, &app.curr_text))
-            }
-        }
+        false => render_text(app, frame),
     }
 
     if app.timer.is_started() {
@@ -29,12 +17,26 @@ pub fn render(app: &mut App, frame: &mut Frame) {
     }
 }
 
-fn center_scroller_txt(app: &mut App) {
+pub fn render_text(app: &mut App, frame: &mut Frame) {
+    app.update_cursor(frame);
+
+    match app.is_in_scroller_mode() {
+        true => {
+            center_scroller_txt(app);
+            render_scroller(app, frame, gen_chars(&app.target_text, &app.curr_text))
+        },
+        false => {
+            render_wrapped(app, frame, gen_chars(&app.target_text, &app.curr_text))
+        }
+    }
+}
+
+pub fn center_scroller_txt(app: &mut App) {
     let filler_len = app.target_text.chars().take_while(|c| *c == ' ').count();
-    if filler_len != app.rect.width as usize / 2 {
+    if filler_len != app.get_rect().width as usize / 2 {
         app.curr_text.drain(0..filler_len);
         app.target_text.drain(0..filler_len);
-        let filler = std::iter::repeat(' ').take(app.rect.width as usize / 2).collect::<String>();
+        let filler = std::iter::repeat(' ').take(app.get_rect().width as usize / 2).collect::<String>();
         app.curr_text.insert_str(0, &filler);
         app.target_text.insert_str(0, &filler);
     }
@@ -63,11 +65,10 @@ fn render_timer(app: &App, frame: &mut Frame) {
     }
 
     if !app.is_finished_typing() {
-        let area = Rect { y: app.rect.y - 2, ..app.rect };
-
+        let rect = app.get_rect();
         frame.render_widget(
             Paragraph::new(app.timer.get_remaining().to_string()),
-            area
+            Rect { y: rect.y.saturating_sub(2), ..rect }
         )
     }
 }
@@ -84,7 +85,7 @@ fn render_stats(app: &App, frame: &mut Frame) {
                     app.target_text.split_whitespace().count(),
                     app.timer.get_time().as_secs()
             )).alignment(Alignment::Center),
-        app.rect
+        app.get_rect()
     )
 }
 
@@ -92,77 +93,14 @@ fn render_wrapped(app: &App, frame: &mut Frame, chars: Vec<Span>) {
     frame.render_widget(
         Paragraph::new(Line::from(chars))
             .wrap(Wrap::default()),
-        app.rect
+        app.get_rect()
     );
 }
 
 fn render_scroller(app: &App, frame: &mut Frame, chars: Vec<Span>) {
     frame.render_widget(
         Paragraph::new(Line::from(chars))
-            .scroll((0, (app.curr_text.len() as u16).saturating_sub(app.rect.width / 2))),
-        app.rect
+            .scroll((0, (app.curr_text.len() as u16).saturating_sub(app.get_rect().width / 2))),
+        app.get_rect()
     );
-}
-
-pub fn create_rect(frame_rect: Rect, scroll: bool, is_finished_typing: bool) -> Rect {
-    let vert = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage(25),
-            Constraint::Percentage(50),
-            Constraint::Percentage(25),
-        ]).split(frame_rect);
-    let r = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(25),
-            Constraint::Percentage(50),
-            Constraint::Percentage(25),
-        ]).split(vert[1])[1];
-
-    if scroll && !is_finished_typing {
-        Rect { y: r.y + r.height / 2, ..r}
-    } else { r }
-}
-
-impl App {
-    pub fn update_cursor(&self, frame: &mut ratatui::Frame) {
-        let mut num_rows = self.rect.y;
-
-        if self.curr_text.len() != 0 {
-            let mut curr_line_width = self.rect.width as usize;
-            let mut last_line_width = 0;
-
-            loop {
-                if curr_line_width < self.target_text.len() {
-                    // check if the char at index rect.width is an whitespace 
-                    if self.target_text.chars().nth(curr_line_width - 1).unwrap() != ' ' {
-                        let whitespace_before_word = self.target_text
-                            .split_at(curr_line_width).0
-                            .rsplit_once(' ').unwrap().0
-                        .len() + 1;
-
-                        let word_lenght = self.target_text
-                            .split_at(whitespace_before_word).1
-                            .split_once(' ').unwrap_or((&self.target_text, "")).0
-                        .len();
-
-                        if curr_line_width - whitespace_before_word < word_lenght {
-                            curr_line_width = whitespace_before_word
-                        } else { curr_line_width += 1 } // if the curr_line_width indexes the end char of an word we +1
-                    }                                   // so curr_line_width indexes the whitespace
-
-                    // if at the next line
-                    if self.curr_text.len() >= curr_line_width {
-                        num_rows += 1;
-
-                        last_line_width = curr_line_width;
-                        curr_line_width += self.rect.width as usize;
-                    } else { break }
-                } else { break }
-            }
-
-            frame.set_cursor(((self.curr_text.len() - last_line_width) as u16) + self.rect.x, num_rows)
-        }
-    }
 }

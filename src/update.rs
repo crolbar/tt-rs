@@ -19,8 +19,8 @@ impl App {
                 self.swap_mode();
 
                 if !self.is_in_scroller_mode() {
-                    self.target_text.drain(0..self.rect.width as usize / 2);
-                    self.curr_text.drain(0..self.rect.width as usize / 2);
+                    self.target_text.drain(0..self.get_rect().width as usize / 2);
+                    self.curr_text.drain(0..self.get_rect().width as usize / 2);
                 }
             },
             KeyCode::Char('r') => self.restart_test()?,
@@ -36,7 +36,7 @@ impl App {
             KeyCode::Char('h') |
             KeyCode::Char('w') |
             KeyCode::Backspace =>  {
-                if self.is_in_scroller_mode() && self.curr_text.len() as u16 <= self.rect.width / 2 {
+                if self.is_in_scroller_mode() && self.curr_text.len() as u16 <= self.get_rect().width / 2 {
                     return Ok(())
                 }
 
@@ -89,7 +89,7 @@ impl App {
     }
 
     fn handle_backspace(&mut self) {
-        if self.is_in_scroller_mode() && self.curr_text.len() as u16 <= self.rect.width / 2 {
+        if self.is_in_scroller_mode() && self.curr_text.len() as u16 <= self.get_rect().width / 2 {
             return;
         }
 

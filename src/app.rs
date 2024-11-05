@@ -9,7 +9,7 @@ pub struct App {
     exit: bool,
     pub target_text: String,
     pub curr_text: String,
-    pub rect: Rect,
+    rect: Rect,
     scroller: bool,
     pub timer: Timer,
     correct_chars: u32,
@@ -176,4 +176,90 @@ impl App {
     pub fn swap_mode(&mut self) {
         self.scroller = !self.scroller;
     }
+
+    pub fn update_rect(&mut self, frame_rect: Rect) {
+        let xperc: f32;
+        let yperc: f32;
+
+        if frame_rect.height < 15 {
+            yperc = 0.20
+        } else {
+            yperc = 0.35f32
+        }
+
+        if frame_rect.width < 80 {
+            xperc = 0.05
+        } else {
+            xperc = 0.25f32;
+        }
+
+        let x = (frame_rect.width as f32 * xperc) as u16;
+        let y: u16;
+        let width = frame_rect.width - x * 2;
+        let height: u16;
+
+        if self.scroller && !self.is_finished_typing() {
+            y = frame_rect.height / 2;
+            height = 1;
+        } else {
+            y = (frame_rect.height as f32 * yperc) as u16;
+            height = frame_rect.height - y * 2;
+        }
+
+        self.rect = Rect { x, y, width, height };
+    }
+
+    pub fn get_rect(&self) -> Rect { self.rect }
+
+    pub fn update_cursor(&mut self, frame: &mut ratatui::Frame) {
+        if self.scroller {
+            frame.set_cursor(self.rect.x + self.rect.width / 2, self.rect.y);
+            return;
+        }
+
+        let (x, y) = get_xy_wrapped(&self.curr_text, &self.target_text, self.rect);
+        frame.set_cursor(x, y)
+    }
+}
+
+pub fn get_xy_wrapped(curr_text: &String, target_text: &String, rect: Rect) -> (u16, u16) {
+    let mut num_rows = rect.y;
+
+    if curr_text.len() != 0 {
+        let mut curr_line_width = rect.width as usize;
+        let mut last_line_width = 0;
+
+        loop {
+            if curr_line_width < target_text.len() {
+                // check if the char at index rect.width is an whitespace 
+                if target_text.chars().nth(curr_line_width - 1).unwrap() != ' ' {
+                    let whitespace_before_word = target_text
+                        .split_at(curr_line_width).0
+                        .rsplit_once(' ').unwrap().0
+                    .len() + 1;
+
+                    let word_lenght = target_text
+                        .split_at(whitespace_before_word).1
+                        .split_once(' ').unwrap_or((&target_text, "")).0
+                    .len();
+
+                    if curr_line_width - whitespace_before_word < word_lenght {
+                        curr_line_width = whitespace_before_word
+                    } else { curr_line_width += 1 } // if the curr_line_width indexes the end char of an word we +1
+                }                                   // so curr_line_width indexes the whitespace
+
+                // if at the next line
+                if curr_text.len() >= curr_line_width {
+                    num_rows += 1;
+
+                    last_line_width = curr_line_width;
+                    curr_line_width += rect.width as usize;
+                } else { break }
+            } else { break }
+        }
+
+        return (((curr_text.len() - last_line_width) as u16) + rect.x, num_rows)
+    }
+
+    return (rect.x, rect.y);
 }
