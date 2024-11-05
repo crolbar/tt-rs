@@ -13,7 +13,7 @@ impl App {
         }
     }
 
-    fn handle_mod_alt(&mut self, key: KeyEvent, tui: &mut Tui) -> Result<()> {
+    fn handle_mod_alt(&mut self, key: KeyEvent) -> Result<()> {
         match key.code {
             KeyCode::Char('s') => {
                 self.swap_mode();
@@ -21,8 +21,6 @@ impl App {
                 if !self.is_in_scroller_mode() {
                     self.target_text.drain(0..self.rect.width as usize / 2);
                     self.curr_text.drain(0..self.rect.width as usize / 2);
-                } else {
-                    tui.draw(self)?
                 }
             },
             KeyCode::Char('r') => self.restart_test()?,
@@ -55,9 +53,9 @@ impl App {
         Ok(())
     }
 
-    fn handle_mods(&mut self, key: KeyEvent, tui: &mut Tui) -> Result<()> {
+    fn handle_mods(&mut self, key: KeyEvent) -> Result<()> {
         match key.modifiers {
-            KeyModifiers::ALT => self.handle_mod_alt(key, tui),
+            KeyModifiers::ALT => self.handle_mod_alt(key),
             KeyModifiers::CONTROL => self.handle_mod_ctrl(key),
             _ => Ok(())
         }
@@ -106,26 +104,33 @@ impl App {
         }
     }
 
-    pub fn update(&mut self, tui: &mut Tui) -> Result<()> {
-        if let Event::Key(key) = event::read()? {
-            if key.kind != KeyEventKind::Press {
-                return Ok(())
-            }
+    fn handle_key_event(&mut self, key: KeyEvent) -> Result<()> {
+        if key.kind != KeyEventKind::Press {
+            return Ok(())
+        }
 
-            self.handle_exit(key);
+        self.handle_exit(key);
 
-            if !key.modifiers.is_empty() && key.modifiers != KeyModifiers::SHIFT {
-                self.handle_mods(key, tui)?;
-                return Ok(())
-            }
+        if !key.modifiers.is_empty() && key.modifiers != KeyModifiers::SHIFT {
+            self.handle_mods(key)?;
+            return Ok(())
+        }
 
-            match key.code {
-                KeyCode::Tab => self.next_test()?,
-                KeyCode::Char(' ') => self.jump_to_next_word(),
-                KeyCode::Char(char) => self.handle_char_input(char)?,
-                KeyCode::Backspace => self.handle_backspace(),
-                _ => ()
-            }
+        match key.code {
+            KeyCode::Tab => self.next_test()?,
+            KeyCode::Char(' ') => self.jump_to_next_word(),
+            KeyCode::Char(char) => self.handle_char_input(char)?,
+            KeyCode::Backspace => self.handle_backspace(),
+            _ => ()
+        }
+
+        Ok(())
+    }
+
+    pub fn update(&mut self, _tui: &mut Tui) -> Result<()> {
+        match event::read()? {
+            Event::Key(key) => self.handle_key_event(key)?,
+            _ => ()
         }
 
         Ok(())
