@@ -25,10 +25,12 @@
     devShells = eachSystem (
       system: let
         pkgs = pkgsFor.${system};
+        run = "cargo run -- \"$@\"";
       in
         with pkgs; {
           default = mkShell {
             packages = [
+              (writers.writeBashBin "run" run)
               (rust-bin.stable.latest.default.override {
                 extensions = ["rust-src" "rust-analyzer"];
               })
