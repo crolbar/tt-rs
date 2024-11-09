@@ -198,7 +198,7 @@ impl App {
         let width = frame_rect.width - x * 2;
         let height: u16;
 
-        if self.scroller && !self.is_finished_typing() {
+        if self.scroller && !self.is_finished_typing() && !self.timer.is_out_of_time() {
             y = frame_rect.height / 2;
             height = 1;
         } else {
