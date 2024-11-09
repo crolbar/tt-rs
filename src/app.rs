@@ -220,6 +220,29 @@ impl App {
         let (x, y) = get_xy_wrapped(&self.curr_text, &self.target_text, self.rect);
         frame.set_cursor(x, y)
     }
+
+    // used in scroller mode to center text with 0 x scroll
+    pub fn adjust_filler_txt(&mut self) {
+        let filler_len = self.target_text
+            .chars()
+            .take_while(|c| *c == ' ')
+            .count();
+
+        let needed_filler_len = self.get_rect().width as usize / 2;
+
+        if filler_len > needed_filler_len { // screen width deincreased
+            self.curr_text.drain(0..filler_len - needed_filler_len);
+            self.target_text.drain(0..filler_len - needed_filler_len);
+
+        } else if filler_len < needed_filler_len { // screen width increased
+            let filler = std::iter::repeat(' ')
+                .take(needed_filler_len - filler_len)
+                .collect::<String>();
+
+            self.curr_text.insert_str(0, &filler);
+            self.target_text.insert_str(0, &filler);
+        }
+    }
 }
 
 pub fn get_xy_wrapped(curr_text: &String, target_text: &String, rect: Rect) -> (u16, u16) {

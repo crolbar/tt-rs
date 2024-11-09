@@ -7,10 +7,12 @@ use ratatui::widgets::*;
 pub fn render(app: &mut App, frame: &mut Frame) {
     app.update_rect(frame.size());
 
-    match app.is_finished_typing() || app.timer.is_out_of_time() {
-        true => render_stats(app, frame),
-        false => render_text(app, frame),
+    if app.is_finished_typing() || app.timer.is_out_of_time() {
+        render_stats(app, frame);
+        return;
     }
+
+    render_text(app, frame);
 
     if app.timer.is_started() {
         render_timer(app, frame);
@@ -22,23 +24,12 @@ pub fn render_text(app: &mut App, frame: &mut Frame) {
 
     match app.is_in_scroller_mode() {
         true => {
-            center_scroller_txt(app);
+            app.adjust_filler_txt();
             render_scroller(app, frame, gen_chars(&app.target_text, &app.curr_text))
         },
         false => {
             render_wrapped(app, frame, gen_chars(&app.target_text, &app.curr_text))
         }
-    }
-}
-
-pub fn center_scroller_txt(app: &mut App) {
-    let filler_len = app.target_text.chars().take_while(|c| *c == ' ').count();
-    if filler_len != app.get_rect().width as usize / 2 {
-        app.curr_text.drain(0..filler_len);
-        app.target_text.drain(0..filler_len);
-        let filler = std::iter::repeat(' ').take(app.get_rect().width as usize / 2).collect::<String>();
-        app.curr_text.insert_str(0, &filler);
-        app.target_text.insert_str(0, &filler);
     }
 }
 
