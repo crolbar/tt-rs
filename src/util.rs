@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use ron::de::from_reader;
 
-pub fn get_random_quotes() -> Result<String> {
+pub fn get_random_quotes() -> Result<Vec<char>> {
     let file_path = {
         let xdg_conf_path = format!("{}/tt-rs/quotes.ron", env::var("XDG_CONFIG_HOME")?);
 
@@ -18,10 +18,15 @@ pub fn get_random_quotes() -> Result<String> {
         File::open(file_path).with_context(|| "quotes.ron(~/.config/tt-rs/quotes.ron) file is incorrect or missing")?
     )?;
 
-    Ok(conts[thread_rng().gen_range(0..conts.len())].clone())
+    let vec_conts: Vec<Vec<char>> = conts.iter()
+        .map(|s| s.chars().collect())
+        .collect();
+
+    let random_idx = thread_rng().gen_range(0..conts.len());
+    Ok(vec_conts[random_idx].clone())
 }
 
-pub fn get_random_words(args: &Vec<String>) -> Result<String> {
+pub fn get_random_words(args: &Vec<String>) -> Result<Vec<char>> {
     let file_path = {
         let xdg_conf_path = format!("{}/tt-rs/words.ron", env::var("XDG_CONFIG_HOME")?);
 
@@ -36,9 +41,7 @@ pub fn get_random_words(args: &Vec<String>) -> Result<String> {
         File::open(file_path).with_context(|| "words.ron(~/.config/tt-rs/words.ron) file is incorrect or missing")?
     )?;
 
-    let mut rng = thread_rng();
-
-    conts.shuffle(&mut rng);
+    conts.shuffle(&mut thread_rng());
 
     let txt_len = {
         if let Some(length) = args.iter().position(|i| i == &"-w".to_string()) {
@@ -49,18 +52,39 @@ pub fn get_random_words(args: &Vec<String>) -> Result<String> {
         } else { 25 }
     };
 
-    Ok(conts[..txt_len].join(" "))
+    let vec_conts: Vec<Vec<char>> = conts.iter()
+        .map(|s| s.chars().collect())
+        .collect();
+    Ok(vec_conts[..txt_len].join(&' '))
 }
 
 
-pub fn get_prev_whitespace(str: &String, idx: usize) -> usize {
+pub fn get_prev_whitespace(str: &Vec<char>, idx: usize) -> usize {
     for i in (0..idx).rev() {
-        if let Some(char) = str.chars().nth(i) {
-            if char == ' ' {
+        if let Some(char) = str.get(i) {
+            if *char == ' ' {
                 return i;
             }
         }
     }
 
     return 0;
+}
+
+pub fn get_next_whitespace(str: &Vec<char>, idx: usize) -> usize {
+    for i in idx..str.len() {
+        if let Some(char) = str.get(i) {
+            if *char == ' ' {
+                return i;
+            }
+        }
+    }
+
+    return idx;
+}
+
+pub fn logg(str: String) {
+    if let Ok(conts) = std::fs::read_to_string("log") {
+        std::fs::write("log", conts + "\n" + &str).unwrap();
+    }
 }

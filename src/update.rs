@@ -66,15 +66,15 @@ impl App {
             self.timer.start();
         }
 
-        if self.target_text.chars().nth(self.curr_text.len()) == Some(' ') {
-            return Ok(())
-        }
-
         if self.is_finished_typing() || self.timer.is_out_of_time() {
             return Ok(())
         } 
 
         if self.target_text.len() == self.curr_text.len() {
+            return Ok(())
+        }
+
+        if self.target_text[self.curr_text.len()] == ' ' {
             return Ok(())
         }
 

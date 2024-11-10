@@ -7,7 +7,7 @@ use crate::util::get_prev_whitespace;
 
 pub struct App {
     exit: bool,
-    pub target_text: String,
+    pub target_text: Vec<char>,
     pub curr_text: String,
     rect: Rect,
     scroller: bool,
@@ -67,8 +67,8 @@ impl App {
         }
 
         let next_whitespace_wrap = self.target_text
-            .chars().enumerate().skip(self.curr_text.len())
-                .find(|(_, c)| *c == ' ');
+            .iter().enumerate().skip(self.curr_text.len())
+                .find(|(_, &c)| c == ' ');
 
         if let Some((next_whitespace_idx, _)) = next_whitespace_wrap {
             let fill = std::iter::repeat(' ').take(
@@ -82,7 +82,12 @@ impl App {
     pub fn is_finished_typing(&self) -> bool {
         if self.curr_text.len() == self.target_text.len() {
             let last_curr_word = self.curr_text.split_whitespace().last().unwrap();
-            let last_target_word = self.target_text.split_whitespace().last().unwrap();
+
+            let mut prev_whitespace_idx = crate::util::get_prev_whitespace(&self.target_text, self.target_text.len() - 1);
+            if self.target_text[prev_whitespace_idx] == ' ' {
+                prev_whitespace_idx += 1;
+            }
+            let last_target_word: String = self.target_text[prev_whitespace_idx..].iter().collect();
 
             return last_curr_word == last_target_word;
         }
@@ -92,7 +97,7 @@ impl App {
 
     pub fn check_is_char_corr(&mut self) -> Result<()> {
         let last_curr_char = self.curr_text.chars().last().unwrap();
-        let last_target_char = self.target_text.chars().nth(self.curr_text.len() - 1).unwrap();
+        let last_target_char = self.target_text[self.curr_text.len() - 1];
 
         if last_curr_char == last_target_char {
             self.correct_chars += 1;
@@ -107,14 +112,14 @@ impl App {
         Ok(())
     }
 
-    fn gen_target_text(args: &Vec<String>) -> Result<String> {
+    fn gen_target_text(args: &Vec<String>) -> Result<Vec<char>> {
         match args.contains(&"-q".to_string()) {
             true => crate::util::get_random_quotes(),
             false => crate::util::get_random_words(args)
         }
     }
 
-    pub fn gen_scroller_filter(&self) -> String {
+    pub fn gen_scroller_filter(&self) -> Vec<char> {
         std::iter::repeat(' ')
             .take(self.rect.width as usize / 2)
             .collect()
@@ -127,7 +132,7 @@ impl App {
         self.restart_test()?;
 
         if self.scroller {
-            self.target_text.insert_str(0, &self.gen_scroller_filter());
+            self.target_text.splice(0..0, self.gen_scroller_filter());
         }
 
         Ok(())
@@ -140,14 +145,15 @@ impl App {
         self.timer.reset();
 
         if self.scroller {
-            self.curr_text.insert_str(0, &self.gen_scroller_filter());
+            self.curr_text = self.gen_scroller_filter().iter().collect();
         }
 
         Ok(())
     }
 
     pub fn get_wpm(&self) -> f64 {
-        let target_words: Vec<&str> = self.target_text.split_whitespace().collect();
+        let target_txt_str = self.target_text.iter().collect::<String>();
+        let target_words: Vec<&str> = target_txt_str.split_whitespace().collect();
 
         self.curr_text
             .split_whitespace()
@@ -224,8 +230,8 @@ impl App {
     // used in scroller mode to center text with 0 x scroll
     pub fn adjust_filler_txt(&mut self) {
         let filler_len = self.target_text
-            .chars()
-            .take_while(|c| *c == ' ')
+            .iter()
+            .take_while(|&c| *c == ' ')
             .count();
 
         let needed_filler_len = self.get_rect().width as usize / 2;
@@ -237,15 +243,16 @@ impl App {
         } else if filler_len < needed_filler_len { // screen width increased
             let filler = std::iter::repeat(' ')
                 .take(needed_filler_len - filler_len)
-                .collect::<String>();
+                .collect::<Vec<char>>();
 
-            self.curr_text.insert_str(0, &filler);
-            self.target_text.insert_str(0, &filler);
+            let tmp: String = filler.iter().map(|c| *c).collect();
+            self.curr_text.insert_str(0, &tmp);
+            self.target_text.splice(0..0, filler);
         }
     }
 }
 
-pub fn get_xy_wrapped(curr_text: &String, target_text: &String, rect: Rect) -> (u16, u16) {
+pub fn get_xy_wrapped(curr_text: &String, target_text: &Vec<char>, rect: Rect) -> (u16, u16) {
     let mut num_rows = rect.y;
 
     if curr_text.len() != 0 {
@@ -255,18 +262,14 @@ pub fn get_xy_wrapped(curr_text: &String, target_text: &String, rect: Rect) -> (
         loop {
             if curr_line_width < target_text.len() {
                 // check if the char at index rect.width is an whitespace 
-                if target_text.chars().nth(curr_line_width - 1).unwrap() != ' ' {
-                    let whitespace_before_word = target_text
-                        .split_at(curr_line_width).0
-                        .rsplit_once(' ').unwrap().0
-                    .len() + 1;
+                if target_text[curr_line_width - 1] != ' ' {
 
-                    let word_lenght = target_text
-                        .split_at(whitespace_before_word).1
-                        .split_once(' ').unwrap_or((&target_text, "")).0
-                    .len();
+                    let whitespace_before_word = crate::util::get_prev_whitespace(target_text, curr_line_width) + 1;
+                    let word_end_idx = crate::util::get_next_whitespace(target_text, curr_line_width);
 
-                    if curr_line_width - whitespace_before_word < word_lenght {
+                    let word_length = word_end_idx - whitespace_before_word;
+
+                    if curr_line_width - whitespace_before_word < word_length {
                         curr_line_width = whitespace_before_word
                     } else { curr_line_width += 1 } // if the curr_line_width indexes the end char of an word we +1
                 }                                   // so curr_line_width indexes the whitespace

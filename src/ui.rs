@@ -33,8 +33,8 @@ pub fn render_text(app: &mut App, frame: &mut Frame) {
     }
 }
 
-fn gen_chars<'a>(target_text: &'a String, curr_text: &'a String) -> Vec<Span<'a>> {
-    target_text.chars().enumerate().map(|(i, target_c)| {
+fn gen_chars<'a>(target_text: &Vec<char>, curr_text: &'a String) -> Vec<Span<'a>> {
+    target_text.iter().enumerate().map(|(i, &target_c)| {
         if let Some(c) = curr_text.chars().nth(i) {
             if c == target_c {
                 target_c.to_string().white()
@@ -73,7 +73,7 @@ fn render_stats(app: &App, frame: &mut Frame) {
                     app.get_accuracy(),
                     app.get_correct(),
                     app.get_incorrect(),
-                    app.target_text.split_whitespace().count(),
+                    app.target_text.iter().filter(|&&c| c.is_whitespace()).count() + 1,
                     app.timer.get_time().as_secs()
             )).alignment(Alignment::Center),
         app.get_rect()
