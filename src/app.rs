@@ -8,7 +8,7 @@ use crate::util::get_prev_whitespace;
 pub struct App {
     exit: bool,
     pub target_text: Vec<char>,
-    pub curr_text: String,
+    pub curr_text: Vec<char>,
     rect: Rect,
     scroller: bool,
     pub timer: Timer,
@@ -18,6 +18,8 @@ pub struct App {
 
 impl App {
     pub fn new(args: &Vec<String>) -> Result<(Self, Tui)> {
+        let target_text = App::gen_target_text(&args)?;
+
         Ok((
             Self {
                 exit: false,
@@ -26,8 +28,8 @@ impl App {
                 correct_chars: 0,
                 incorrect_chars: 0,
                 rect: Rect::default(),
-                curr_text: String::new(),
-                target_text: App::gen_target_text(&args)?,
+                curr_text: Vec::with_capacity(target_text.len()),
+                target_text,
             },
             Tui::enter()?
         ))
@@ -51,8 +53,9 @@ impl App {
     pub fn del_whitespaces(&mut self) {
         let last_non_whitespace = self
             .curr_text
-            .char_indices()
-            .rfind(|(_, c)| *c != ' ');
+            .iter()
+            .enumerate()
+            .rfind(|(_, &c)| c != ' ');
 
         if let Some((i, _)) = last_non_whitespace {
             self.curr_text.truncate(i + 1)
@@ -62,7 +65,7 @@ impl App {
     }
 
     pub fn jump_to_next_word(&mut self) {
-        if self.curr_text.chars().last() == Some(' ') {
+        if self.curr_text.iter().last() == Some(&' ') {
             return;
         }
 
@@ -73,21 +76,19 @@ impl App {
         if let Some((next_whitespace_idx, _)) = next_whitespace_wrap {
             let fill = std::iter::repeat(' ').take(
                 (next_whitespace_idx + 1) - self.curr_text.len()
-            ).collect::<String>();
+            ).collect::<Vec<char>>();
 
-            self.curr_text.push_str(&fill);
+            self.curr_text.extend(fill);
         }
     }
 
     pub fn is_finished_typing(&self) -> bool {
         if self.curr_text.len() == self.target_text.len() {
-            let last_curr_word = self.curr_text.split_whitespace().last().unwrap();
+            // we can use this for both because the last curr word can't have whitespaces and the whitespace must be there
+            let last_whitespace_idx = crate::util::get_prev_whitespace(&self.curr_text, self.curr_text.len() - 1);
 
-            let mut prev_whitespace_idx = crate::util::get_prev_whitespace(&self.target_text, self.target_text.len() - 1);
-            if self.target_text[prev_whitespace_idx] == ' ' {
-                prev_whitespace_idx += 1;
-            }
-            let last_target_word: String = self.target_text[prev_whitespace_idx..].iter().collect();
+            let last_curr_word: String = self.curr_text[last_whitespace_idx..].iter().collect();
+            let last_target_word: String = self.target_text[last_whitespace_idx..].iter().collect();
 
             return last_curr_word == last_target_word;
         }
@@ -96,17 +97,18 @@ impl App {
     }
 
     pub fn check_is_char_corr(&mut self) -> Result<()> {
-        let last_curr_char = self.curr_text.chars().last().unwrap();
+        let last_curr_char = self.curr_text[self.curr_text.len() - 1];
         let last_target_char = self.target_text[self.curr_text.len() - 1];
 
-        if last_curr_char == last_target_char {
-            self.correct_chars += 1;
-        } else {
-            self.incorrect_chars += 1;
+        match last_curr_char == last_target_char {
+            true => self.correct_chars += 1,
+            false => {
+                self.incorrect_chars += 1;
 
-            if std::env::args().find(|i| i == "-d").is_some() {
-                self.next_test()?;
-            };
+                if std::env::args().find(|i| i == "-d").is_some() {
+                    self.next_test()?;
+                };
+            }
         }
 
         Ok(())
@@ -145,20 +147,26 @@ impl App {
         self.timer.reset();
 
         if self.scroller {
-            self.curr_text = self.gen_scroller_filter().iter().collect();
+            self.curr_text = self.gen_scroller_filter();
         }
 
         Ok(())
     }
 
     pub fn get_wpm(&self) -> f64 {
-        let target_txt_str = self.target_text.iter().collect::<String>();
-        let target_words: Vec<&str> = target_txt_str.split_whitespace().collect();
+        let target_words: Vec<String> = self.target_text
+            .split(|c| c.is_whitespace())
+            .map(|word| word.iter().collect())
+            .collect();
 
-        self.curr_text
-            .split_whitespace()
-            .enumerate()
-            .filter(|(i, w)| *w == target_words[*i])
+        let curr_words: Vec<String> = self.curr_text
+            .split(|c| c.is_whitespace())
+            .map(|word| word.iter().collect())
+            .collect();
+
+        target_words.iter()
+            .zip(curr_words)
+            .filter(|(t, c)| *t == c)
             .count() as f64
             / (self.timer.get_time().as_secs_f64() / 60.0)
     }
@@ -245,14 +253,13 @@ impl App {
                 .take(needed_filler_len - filler_len)
                 .collect::<Vec<char>>();
 
-            let tmp: String = filler.iter().map(|c| *c).collect();
-            self.curr_text.insert_str(0, &tmp);
+            self.curr_text.splice(0..0, filler.clone());
             self.target_text.splice(0..0, filler);
         }
     }
 }
 
-pub fn get_xy_wrapped(curr_text: &String, target_text: &Vec<char>, rect: Rect) -> (u16, u16) {
+pub fn get_xy_wrapped(curr_text: &Vec<char>, target_text: &Vec<char>, rect: Rect) -> (u16, u16) {
     let mut num_rows = rect.y;
 
     if curr_text.len() != 0 {

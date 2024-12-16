@@ -33,10 +33,10 @@ pub fn render_text(app: &mut App, frame: &mut Frame) {
     }
 }
 
-fn gen_chars<'a>(target_text: &Vec<char>, curr_text: &'a String) -> Vec<Span<'a>> {
+fn gen_chars<'a>(target_text: &Vec<char>, curr_text: &Vec<char>) -> Vec<Span<'a>> {
     target_text.iter().enumerate().map(|(i, &target_c)| {
-        if let Some(c) = curr_text.chars().nth(i) {
-            if c == target_c {
+        if let Some(c) = curr_text.get(i) {
+            if *c == target_c {
                 target_c.to_string().white()
             } else {
                 target_c.to_string().light_red()

@@ -55,6 +55,11 @@ pub fn get_random_words(args: &Vec<String>) -> Result<Vec<char>> {
     let vec_conts: Vec<Vec<char>> = conts.iter()
         .map(|s| s.chars().collect())
         .collect();
+
+    if txt_len > vec_conts.len() {
+        return Ok(vec_conts.join(&' '));
+    }
+
     Ok(vec_conts[..txt_len].join(&' '))
 }
 
