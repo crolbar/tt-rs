@@ -3,7 +3,7 @@ use crate::{app::App, tui::Tui};
 use anyhow::Result;
 
 impl App {
-    fn handle_exit(&mut self, key: KeyEvent) {
+    fn handle_exit(&mut self, key: &KeyEvent) {
         if 
             (key.modifiers == KeyModifiers::ALT && key.code == KeyCode::Char('q')) ||
             (key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('c')) ||
@@ -13,7 +13,7 @@ impl App {
         }
     }
 
-    fn handle_mod_alt(&mut self, key: KeyEvent) -> Result<()> {
+    fn handle_mod_alt(&mut self, key: &KeyEvent) -> Result<()> {
         match key.code {
             KeyCode::Char('s') => {
                 self.swap_mode();
@@ -31,7 +31,7 @@ impl App {
         Ok(())
     }
 
-    fn handle_mod_ctrl(&mut self, key: KeyEvent) -> Result<()> {
+    fn handle_mod_ctrl(&mut self, key: &KeyEvent) -> Result<()> {
         match key.code {
             KeyCode::Char('h') |
             KeyCode::Char('w') |
@@ -53,7 +53,7 @@ impl App {
         Ok(())
     }
 
-    fn handle_mods(&mut self, key: KeyEvent) -> Result<()> {
+    fn handle_mods(&mut self, key: &KeyEvent) -> Result<()> {
         match key.modifiers {
             KeyModifiers::ALT => self.handle_mod_alt(key),
             KeyModifiers::CONTROL => self.handle_mod_ctrl(key),
@@ -97,22 +97,24 @@ impl App {
             return;
         }
 
-        if self.curr_text.chars().last() == Some(' ') {
+        if self.curr_text.get(self.curr_text.len().saturating_sub(1)) == Some(&' ') {
             self.del_whitespaces();
-        } else {
-            self.curr_text.pop();
+
+            return;
         }
+
+        self.curr_text.pop();
     }
 
-    fn handle_key_event(&mut self, key: KeyEvent) -> Result<()> {
+    fn handle_key_event(&mut self, key: &KeyEvent) -> Result<()> {
         if key.kind != KeyEventKind::Press {
             return Ok(())
         }
 
-        self.handle_exit(key);
+        self.handle_exit(&key);
 
         if !key.modifiers.is_empty() && key.modifiers != KeyModifiers::SHIFT {
-            self.handle_mods(key)?;
+            self.handle_mods(&key)?;
             return Ok(())
         }
 
@@ -129,7 +131,7 @@ impl App {
 
     pub fn update(&mut self, _tui: &mut Tui) -> Result<()> {
         match event::read()? {
-            Event::Key(key) => self.handle_key_event(key)?,
+            Event::Key(key) => self.handle_key_event(&key)?,
             _ => ()
         }
 
