@@ -74,12 +74,11 @@ impl Timer {
     }
 
     pub fn get_time(&self) -> Duration {
-        if self.end_time.is_none() 
-            && std::env::args().find(|a| a == "-t").is_some() 
-        {
-            return self.timer_time
+        if let Some(end_time) = self.end_time {
+            return end_time - self.start_time.unwrap();
         }
 
-        self.end_time.unwrap() - self.start_time.unwrap()
+        // if we don't have end_time that means that we ran out of time
+        self.timer_time
     }
 }
